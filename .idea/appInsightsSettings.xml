@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.pigo.areo" />
+                  <option name="mobileSdkAppId" value="1:371993303456:android:3d0e404f9f84fa9e612cc5" />
+                  <option name="projectId" value="test-firenase" />
+                  <option name="projectNumber" value="371993303456" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

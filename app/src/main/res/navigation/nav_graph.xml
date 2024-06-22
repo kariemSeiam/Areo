@@ -3,26 +3,20 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/FirstFragment">
-
+    app:startDestination="@id/createTripFragment">
     <fragment
-        android:id="@+id/FirstFragment"
-        android:name="com.pigo.areo.FirstFragment"
-        android:label="@string/first_fragment_label"
-        tools:layout="@layout/fragment_first">
-
-        <action
-            android:id="@+id/action_FirstFragment_to_SecondFragment"
-            app:destination="@id/SecondFragment" />
-    </fragment>
+        android:id="@+id/createTripFragment"
+        android:name="com.pigo.areo.ui.create.CreateTripFragment"
+        android:label="fragment_create_trip"
+        tools:layout="@layout/fragment_create_trip" />
     <fragment
-        android:id="@+id/SecondFragment"
-        android:name="com.pigo.areo.SecondFragment"
-        android:label="@string/second_fragment_label"
-        tools:layout="@layout/fragment_second">
-
-        <action
-            android:id="@+id/action_SecondFragment_to_FirstFragment"
-            app:destination="@id/FirstFragment" />
-    </fragment>
+        android:id="@+id/settingsFragment"
+        android:name="com.pigo.areo.ui.setting.SettingsFragment"
+        android:label="fragment_settings"
+        tools:layout="@layout/fragment_settings" />
+    <fragment
+        android:id="@+id/tripDetailsFragment"
+        android:name="com.pigo.areo.ui.history.TripDetailsFragment"
+        android:label="fragment_trip_details"
+        tools:layout="@layout/fragment_trip_details" />
 </navigation>

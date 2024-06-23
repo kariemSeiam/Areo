@@ -1,13 +1,15 @@
 <resources>
 
-    <style name="Theme.Areo" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.Areo" parent="Theme.Material3.Dark.NoActionBar">
         <!-- Transparent system bars for edge-to-edge layout -->
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
 
         <!-- Adjust status bar icons for better visibility over the transparent background -->
         <!-- Use true for light icons with dark background and false for dark icons with light background -->
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+
 
         <!-- Ensure content is not obscured by the system bars -->
         <item name="android:fitsSystemWindows">true</item>

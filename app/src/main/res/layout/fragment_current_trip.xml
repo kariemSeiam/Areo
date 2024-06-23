@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingTop="?attr/actionBarSize"
+    tools:context=".ui.current_trip.CurrentTripFragment">
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_current_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="@dimen/fab_margin"
+        android:layout_marginBottom="100dp"
+        app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Primary"
+        app:srcCompat="@drawable/ic_gps" />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        >
+
+        <ImageView
+            android:id="@+id/account"
+            android:layout_width="60dp"
+            android:scaleType="fitCenter"
+            android:layout_height="60dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_marginStart="@dimen/fab_margin"
+            app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Primary"
+            app:srcCompat="@drawable/ic_pilot" />
+
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintStart_toEndOf="@id/account"
+            app:layout_constraintTop_toTopOf="@id/account"
+            app:cardCornerRadius="@dimen/fab_margin"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:strokeColor="@color/primary"
+            android:layout_marginEnd="@dimen/fab_margin"
+            android:minHeight="40dp"
+            app:layout_constraintBottom_toBottomOf="@id/account"
+            >
+            <TextView
+                android:id="@+id/message_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/fab_margin"
+                android:textColor="?attr/actionModeSplitBackground"
+                android:fontFamily="@font/cairo"
+                android:text="Hello, this is a chat bubble!"
+                android:textSize="16sp" />
+
+
+        </com.google.android.material.card.MaterialCardView>
+
+
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+</FrameLayout>

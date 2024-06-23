@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/createTripFragment">
+    app:startDestination="@id/currentTripFragment">
     <fragment
         android:id="@+id/createTripFragment"
         android:name="com.pigo.areo.ui.create.CreateTripFragment"
@@ -19,4 +19,9 @@
         android:name="com.pigo.areo.ui.history.TripDetailsFragment"
         android:label="fragment_trip_details"
         tools:layout="@layout/fragment_trip_details" />
+    <fragment
+        android:id="@+id/currentTripFragment"
+        android:name="com.pigo.areo.ui.current_trip.CurrentTripFragment"
+        android:label="fragment_current_trip"
+        tools:layout="@layout/fragment_current_trip" />
 </navigation>

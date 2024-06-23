@@ -3,17 +3,21 @@
     <item
         android:id="@+id/tripDetailsFragment"
         android:icon="@drawable/ic_history"
-        android:title="ic_history" />
+        android:title="History" />
     <item
         android:id="@+id/createTripFragment"
         android:icon="@drawable/ic_point_tp"
-        android:title="create_trip" />
+        android:title="Mange Trip" />
+    <item
+        android:id="@+id/currentTripFragment"
+        android:icon="@drawable/ic_location"
+        android:title="Trip State" />
 
 
     <item
         android:id="@+id/settingsFragment"
         android:icon="@drawable/ic_setting"
-        android:title="ic_setting" />
+        android:title="Setting" />
 
 
 </menu>

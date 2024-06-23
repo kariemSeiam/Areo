@@ -1,20 +1,19 @@
 <resources>
-    <!-- Base application theme. -->
+    <!-- Base application theme -->
     <style name="Base.Theme.Areo" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Customize your theme attributes -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorSecondary">@color/secondary</item>
     </style>
 
+    <!-- Theme extending the base theme -->
     <style name="Theme.Areo" parent="Base.Theme.Areo">
         <!-- Make status bar transparent and content appear under it -->
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowTranslucentStatus">true</item>
-
-        <!-- Ensure content is not obscured by the status bar -->
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:fitsSystemWindows">true</item>
-
-        <!-- For drawing behind the status bar -->
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 </resources>

@@ -1,67 +1,187 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingTop="?attr/actionBarSize"
-    tools:context=".ui.current_trip.CurrentTripFragment">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_current_location"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="@dimen/fab_margin"
-        android:layout_marginBottom="100dp"
-        app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Primary"
-        app:srcCompat="@drawable/ic_gps" />
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <data>
+
+    </data>
+
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        >
+        android:paddingTop="@dimen/_60sdp"
+        tools:context=".ui.current_trip.CurrentTripFragment">
 
-        <ImageView
-            android:id="@+id/account"
-            android:layout_width="60dp"
-            android:scaleType="fitCenter"
-            android:layout_height="60dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginStart="@dimen/fab_margin"
-            app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Primary"
-            app:srcCompat="@drawable/ic_pilot" />
-
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="0dp"
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_current_location"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:layout_constraintStart_toEndOf="@id/account"
-            app:layout_constraintTop_toTopOf="@id/account"
-            app:cardCornerRadius="@dimen/fab_margin"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:strokeColor="@color/primary"
-            android:layout_marginEnd="@dimen/fab_margin"
-            android:minHeight="40dp"
-            app:layout_constraintBottom_toBottomOf="@id/account"
-            >
-            <TextView
-                android:id="@+id/message_text"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="@dimen/_16sdp"
+            android:layout_marginBottom="@dimen/_80sdp"
+            app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Primary"
+            app:srcCompat="@drawable/ic_gps" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/account"
+                android:layout_width="@dimen/_40sdp"
+                android:layout_height="@dimen/_40sdp"
+                android:layout_marginStart="@dimen/_16sdp"
+                android:layout_marginTop="@dimen/_16sdp"
+                android:scaleType="fitCenter"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_driver" />
+
+            <LinearLayout
+                android:id="@+id/statuesLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/_8sdp"
+                android:layout_marginTop="@dimen/_24sdp"
+                android:layout_marginEnd="@dimen/_16sdp"
+                android:background="@drawable/received_message_bg"
+                android:paddingHorizontal="@dimen/_16sdp"
+                android:paddingVertical="@dimen/_4sdp"
+                app:layout_constraintStart_toEndOf="@id/account"
+                app:layout_constraintTop_toTopOf="@id/account">
+
+                <TextView
+                    android:id="@+id/message_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/cairo"
+                    android:text="Driver is coming"
+                    android:textColor="?attr/actionModeSplitBackground"
+                    android:textSize="@dimen/_12ssp" />
+
+            </LinearLayout>
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="@dimen/fab_margin"
-                android:textColor="?attr/actionModeSplitBackground"
-                android:fontFamily="@font/cairo"
-                android:text="Hello, this is a chat bubble!"
-                android:textSize="16sp" />
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="@id/statuesLayout"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/statuesLayout"
+                app:layout_constraintTop_toTopOf="@id/statuesLayout">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="@dimen/_80sdp"
+                    android:layout_height="@dimen/_30sdp"
+                    android:layout_marginBottom="@dimen/_16sdp"
+                    app:cardBackgroundColor="#336750A4"
+                    app:cardCornerRadius="@dimen/_16sdp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <ImageView
+                            android:id="@+id/ivIconLoc"
+                            android:layout_width="@dimen/_18sdp"
+                            android:layout_height="@dimen/_18sdp"
+                            android:layout_marginStart="@dimen/_9sdp"
+                            android:src="@drawable/ic_distance"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/tvIconLoc"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <TextView
+                            android:id="@+id/tvIconLoc"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginStart="@dimen/_6sdp"
+                            android:fontFamily="@font/cairo_bold"
+                            android:text="23 "
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/ivIconLoc"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <TextView
+                            android:id="@+id/tvIconLoc2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginEnd="@dimen/_8sdp"
+                            android:fontFamily="@font/cairo_bold"
+                            android:text=" km"
+                            android:textColor="@color/primary"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/tvIconLoc"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="@dimen/_80sdp"
+                    android:layout_height="@dimen/_30sdp"
+                    app:cardBackgroundColor="#336750A4"
+                    app:cardCornerRadius="@dimen/_16sdp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp"
+                    >
 
 
-        </com.google.android.material.card.MaterialCardView>
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
 
+                        <ImageView
+                            android:id="@+id/ivIconTime"
+                            android:layout_width="@dimen/_20sdp"
+                            android:layout_height="@dimen/_20sdp"
+                            android:layout_marginStart="@dimen/_8sdp"
+                            android:src="@drawable/ic_time"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/tvIconTime"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
 
+                        <TextView
+                            android:id="@+id/tvIconTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginStart="@dimen/_4sdp"
+                            android:fontFamily="@font/cairo_bold"
+                            android:text="60"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/ivIconTime"
+                            app:layout_constraintTop_toTopOf="parent" />
 
+                        <TextView
+                            android:id="@+id/tvIconTime2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginEnd="@dimen/_8sdp"
+                            android:fontFamily="@font/cairo_bold"
+                            android:text=" min"
+                            android:textColor="@color/primary"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/tvIconTime"
+                            app:layout_constraintTop_toTopOf="parent" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                    </androidx.constraintlayout.widget.ConstraintLayout>
 
+                </com.google.android.material.card.MaterialCardView>
 
-</FrameLayout>
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </FrameLayout>
+
+</layout>

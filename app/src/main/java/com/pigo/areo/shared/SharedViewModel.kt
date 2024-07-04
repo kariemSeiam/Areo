@@ -23,6 +23,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.Polyline
@@ -35,6 +36,7 @@ import com.google.firebase.database.ValueEventListener
 import com.pigo.areo.R
 import com.pigo.areo.geolink.GeolinkApiService
 import com.pigo.areo.geolink.models.DirectionResponse
+import com.pigo.areo.geolink.models.Route
 import com.pigo.areo.geolink.models.findShortestPath
 import com.pigo.areo.utils.removeLocationTask
 import com.pigo.areo.utils.setLocationTask
@@ -50,6 +52,8 @@ import kotlin.math.sqrt
 
 class SharedViewModel(context: Context) : ViewModel() {
 
+    private var appContext: Context = context.applicationContext
+
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
 
@@ -61,6 +65,9 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     private val _currentLatLng = MutableLiveData<LatLng>()
     val currentLatLng: LiveData<LatLng> = _currentLatLng
+
+    private val _routeResponse = MutableLiveData<Route?>()
+    val routeResponse: LiveData<Route?> = _routeResponse
 
     private var initialCameraMove = true
     private lateinit var geoFire: GeoFire
@@ -95,6 +102,10 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun updateDirectionResponse(routeResponse: Route) {
+        _routeResponse.value = routeResponse
+    }
+
     fun loginAs(role: UserRole) {
         _userRole.value = role
         sharedPreferences.edit().putString("user_role", role.name).apply()
@@ -118,48 +129,81 @@ class SharedViewModel(context: Context) : ViewModel() {
     fun updateCurrentLatLng(latLng: LatLng) {
         _currentLatLng.value = latLng
         saveLastFetchedLatLng(latLng)
-        if (initialCameraMove) moveCameraToCurrentPosition()
+        if (initialCameraMove) centerCameraOnUserLocation()
     }
 
-    fun moveCameraToCurrentPosition() {
+    fun centerCameraOnUserLocation() {
         val map = googleMap.value
         val latLng = currentLatLng.value
+        val userRole = _userRole.value
 
         if (map == null) {
             Log.e("SharedViewModel", "GoogleMap instance is null")
+            return
         }
 
         if (latLng == null) {
             Log.e("SharedViewModel", "Current LatLng is null")
+            return
         }
 
-        map?.let { googleMap ->
-            latLng?.let { location ->
-                val cameraUpdate = CameraUpdateFactory.newLatLngZoom(location, 15f)
-                googleMap.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
+        when (userRole) {
+            UserRole.DRIVER -> {
+                val cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 18f)
+                map.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
                     override fun onFinish() {
                         initialCameraMove = false
+                        updateCurrentMarkerAndAddMarkers(map)
                     }
 
                     override fun onCancel() {
                         initialCameraMove = false
+                        updateCurrentMarkerAndAddMarkers(map)
                     }
                 })
             }
+
+            UserRole.PILOT -> {
+                fetchOtherUserLocation { otherUserLatLng ->
+                    if (otherUserLatLng != null) {
+                        val bounds =
+                            LatLngBounds.Builder().include(latLng).include(otherUserLatLng).build()
+                        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
+                        map.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
+                            override fun onFinish() {
+                                initialCameraMove = false
+                                updateCurrentMarkerAndAddMarkers(map)
+                            }
+
+                            override fun onCancel() {
+                                initialCameraMove = false
+                                updateCurrentMarkerAndAddMarkers(map)
+                            }
+                        })
+                    } else {
+                        Log.e("SharedViewModel", "Other user location is null")
+                    }
+                }
+            }
+
+            else -> {
+                Log.e("SharedViewModel", "Unknown user role")
+            }
         }
     }
+
 
     fun moveCameraToPosition(latLng: LatLng) {
         googleMap.value?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
     }
 
-    fun updateCurrentMarkerAndAddMarkers(map: GoogleMap, context: Context) {
+    fun updateCurrentMarkerAndAddMarkers(map: GoogleMap) {
         val markerWidth = 120 // Desired width of the marker icon
         val markerHeight = 120 // Desired height of the marker icon
 
-        val icCar = getBitmapDescriptorFromVector(context, R.drawable.ic_loc_car, 140, 180)
+        val icCar = getBitmapDescriptorFromVector(appContext, R.drawable.ic_loc_car, 140, 180)
         val icCurrent =
-            getBitmapDescriptorFromVector(context, R.drawable.ic_loc, markerWidth, markerHeight)
+            getBitmapDescriptorFromVector(appContext, R.drawable.ic_loc, markerWidth, markerHeight)
 
         _currentLatLng.value?.let { currentUserLatLng ->
             val currentUserIconResId = when (_userRole.value) {
@@ -218,22 +262,25 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun parseRouteData(directionResponse: DirectionResponse): List<LatLng> {
+    private fun parseRouteData(directionResponse: DirectionResponse): List<LatLng> {
         val waypoints = mutableListOf<LatLng>()
         if (directionResponse.success) {
-            val route = findShortestPath(directionResponse.data)
-            route?.waypoints?.forEach { waypoint ->
-                waypoints.add(LatLng(waypoint.lat, waypoint.lng))
+            findShortestPath(directionResponse.data)?.let { route ->
+                updateDirectionResponse(route)
+                route.waypoints.forEach { waypoint ->
+                    waypoints.add(LatLng(waypoint.lat, waypoint.lng))
+                }
             }
         }
         return waypoints
     }
 
 
-    fun fetchAndDrawRoute(directionResponse: DirectionResponse) {
+    private fun fetchAndDrawRoute(directionResponse: DirectionResponse) {
         viewModelScope.launch {
             try {
                 val waypoints = parseRouteData(directionResponse)
+
                 googleMap.value?.let { map ->
                     drawRouteOnMap(map, waypoints)
                 } ?: run {
@@ -247,9 +294,7 @@ class SharedViewModel(context: Context) : ViewModel() {
 
 
     private fun drawRouteOnMap(
-        googleMap: GoogleMap,
-        waypoints: List<LatLng>,
-        hexColor: String = "FF6750A4"
+        googleMap: GoogleMap, waypoints: List<LatLng>, hexColor: String = "FF6750A4"
     ) {
         val color = Color.parseColor("#$hexColor")
         val adjustedColor =
@@ -338,17 +383,11 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     private fun getBitmapDescriptorFromVector(
-        context: Context,
-        vectorResId: Int,
-        width: Int,
-        height: Int
+        context: Context, vectorResId: Int, width: Int, height: Int
     ): BitmapDescriptor {
         val vectorDrawable: Drawable? = ContextCompat.getDrawable(context, vectorResId)
         vectorDrawable?.setBounds(
-            0,
-            0,
-            vectorDrawable.intrinsicWidth,
-            vectorDrawable.intrinsicHeight
+            0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight
         )
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -358,11 +397,11 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
 
-/*    fun clearRoute() {
-        Log.d("SharedViewModel", "Clearing route points")
-        polylineOptions.points.clear()
-        googleMap.value?.clear()
-    }*/
+    /*    fun clearRoute() {
+            Log.d("SharedViewModel", "Clearing route points")
+            polylineOptions.points.clear()
+            googleMap.value?.clear()
+        }*/
 
     fun addCustomMarker(latLng: LatLng, title: String, snippet: String, iconResId: Int) {
         Log.d(

@@ -11,4 +11,6 @@
     <color name="on_background">#E0E0E0</color>
     <color name="on_surface">#E0E0E0</color>
     <color name="on_error">#000000</color>
+    <color name="back_cards">#FF322C4C</color>
+
 </resources>

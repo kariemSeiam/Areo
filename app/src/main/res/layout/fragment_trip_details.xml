@@ -17,7 +17,7 @@
         android:fontFamily="@font/cairo_bold"
         android:text="Trips History"
         android:textColor="@color/primary"
-        android:textSize="28sp"
+        android:textSize="@dimen/_24sdp"
         android:textStyle="bold" />
 
 

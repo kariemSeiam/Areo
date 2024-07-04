@@ -2,6 +2,7 @@
 <resources>
     <color name="primary">#FF6750A4</color>
     <color name="primary_variant">#E95D91</color>
+    <color name="back_cards">#66D4CDED</color>
     <color name="secondary">#6200EA</color>
     <color name="background">#FFFFFF</color>
     <color name="surface">#F5F5F5</color>

@@ -3,17 +3,19 @@
     <style name="Base.Theme.Areo" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your theme attributes -->
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryVariant">@color/primary_variant</item>
         <item name="colorSecondary">@color/secondary</item>
+
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <!-- Ensure content is not obscured by the system bars -->
+        <item name="android:fitsSystemWindows">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+
     </style>
 
     <!-- Theme extending the base theme -->
+    <!-- Light theme extending the base theme -->
     <style name="Theme.Areo" parent="Base.Theme.Areo">
-        <!-- Make status bar transparent and content appear under it -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowContentOverlay">@null</item>
-        <item name="android:fitsSystemWindows">true</item>
-        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

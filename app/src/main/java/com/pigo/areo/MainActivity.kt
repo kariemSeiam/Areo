@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -24,7 +25,10 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.pigo.areo.databinding.ActivityMainBinding
-import com.pigo.areo.ui.current_trip.CurrentTripViewModel
+import com.pigo.areo.shared.SharedViewModel
+import com.pigo.areo.shared.SharedViewModelFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -37,7 +41,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
     private lateinit var appBarConfiguration: AppBarConfiguration
-    private lateinit var currentTripViewModel: CurrentTripViewModel
+    private val sharedViewModel: SharedViewModel by viewModels {
+        SharedViewModelFactory(this.applicationContext)
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -59,7 +65,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setupNavigation()
 
-        currentTripViewModel = viewModels<CurrentTripViewModel>().value
 
         val mapFragment =
             supportFragmentManager.findFragmentById(R.id.map_fragment_container) as SupportMapFragment
@@ -113,8 +118,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Permissions granted, proceed to request location updates
         val locationRequest = LocationRequest.create().apply {
-            interval = 10000
-            fastestInterval = 5000
+            interval = 4000
+            fastestInterval = 3000
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
 
@@ -123,17 +128,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var isFirstUpdate = true
 
+
     private fun updateLocationOnMap(location: Location) {
         val currentLatLng = LatLng(location.latitude, location.longitude)
-        currentTripViewModel.updateCurrentLatLng(currentLatLng)
+        sharedViewModel.updateCurrentLatLng(currentLatLng)
+        Log.d("LocationUpdate", "Updated current LatLng: $currentLatLng")
+
+        if (::gMap.isInitialized) {
+            sharedViewModel.updateCurrentMarkerAndAddMarkers(gMap, this.applicationContext)
+            Log.d("LocationUpdate", "Updated current marker and added markers")
+        }
 
         if (::gMap.isInitialized && isFirstUpdate) {
-            val cameraUpdate = CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f)
-            gMap.animateCamera(cameraUpdate)
+            animateCameraToLocation(currentLatLng)
             isFirstUpdate = false
         }
+
+
     }
 
+    private fun animateCameraToLocation(latLng: LatLng) {
+        val cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
+        gMap.animateCamera(cameraUpdate)
+        Log.d("LocationUpdate", "Animated camera to new location: $latLng")
+    }
 
     private fun setupNavigation() {
         val navHostFragment =
@@ -184,9 +202,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
+        sharedViewModel.setGoogleMap(googleMap)
         gMap = googleMap
-        currentTripViewModel.setGoogleMap(googleMap)
         changeMapStyle()
+        Log.e("TestGamp", "onMapReady  ${gMap == googleMap}")
         // Setup map here (e.g., set markers, move camera)
     }
 

@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var locationCallback: LocationCallback
     private lateinit var appBarConfiguration: AppBarConfiguration
     private val sharedViewModel: SharedViewModel by viewModels {
-        SharedViewModelFactory(this.applicationContext)
+        SharedViewModelFactory(applicationContext)
     }
 
     private val requestPermissionLauncher = registerForActivityResult(

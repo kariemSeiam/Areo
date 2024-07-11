@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         Log.d("LocationUpdate", "Updated current LatLng: $currentLatLng")
 
         if (::gMap.isInitialized) {
-            sharedViewModel.updateCurrentMarkerAndAddMarkers(gMap, this.applicationContext)
+            sharedViewModel.updateCurrentMarkerAndAddMarkers(gMap)
             Log.d("LocationUpdate", "Updated current marker and added markers")
         }
 
@@ -178,6 +178,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             while (isActive) {
                 delay(10000) // Delay for 10 seconds
                 updateCameraPosition()
+                sharedViewModel.centerCameraOnUserLocation()
             }
         }
     }

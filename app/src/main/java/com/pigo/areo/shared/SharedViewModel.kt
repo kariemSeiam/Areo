@@ -85,6 +85,10 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     private val apiService = GeolinkApiService()
 
+    // Added local variables for pilot and driver LatLng
+    private var pilotLatLng: LatLng? = null
+    private var driverLatLng: LatLng? = null
+
     init {
         initializeGeoFire()
         loadUserRole()
@@ -127,12 +131,12 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     fun updateCurrentLatLng(latLng: LatLng) {
-        _currentLatLng.value = latLng
+        _currentLatLng.postValue(latLng)
         saveLastFetchedLatLng(latLng)
         if (initialCameraMove) centerCameraOnUserLocation()
     }
 
-    fun centerCameraOnUserLocation() {
+    fun centerCameraOnUserLocation(preZoom: Boolean = true) {
         val map = googleMap.value
         val latLng = currentLatLng.value
         val userRole = _userRole.value
@@ -164,25 +168,35 @@ class SharedViewModel(context: Context) : ViewModel() {
             }
 
             UserRole.PILOT -> {
-                fetchOtherUserLocation { otherUserLatLng ->
-                    if (otherUserLatLng != null) {
-                        val bounds =
-                            LatLngBounds.Builder().include(latLng).include(otherUserLatLng).build()
-                        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
-                        map.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
-                            override fun onFinish() {
-                                initialCameraMove = false
-                                updateCurrentMarkerAndAddMarkers(map)
+                if (driverLatLng != null) {
+                    val bounds = LatLngBounds.Builder().include(latLng).include(driverLatLng!!).build()
+                    val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
+                    map.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
+                        override fun onFinish() {
+                            if (preZoom) {
+                                // Get the current zoom level and decrease it by 1f
+                                val currentZoom = map.cameraPosition.zoom
+                                val newZoom = currentZoom - 1f
+                                val zoomUpdate = CameraUpdateFactory.zoomTo(newZoom)
+                                map.animateCamera(zoomUpdate)
+                            }else{
+                                // Get the current zoom level and decrease it by 1f
+                                val currentZoom = map.cameraPosition.zoom
+                                val newZoom = currentZoom - 0.7f
+                                val zoomUpdate = CameraUpdateFactory.zoomTo(newZoom)
+                                map.animateCamera(zoomUpdate)
                             }
+                            initialCameraMove = false
+                            updateCurrentMarkerAndAddMarkers(map)
+                        }
 
-                            override fun onCancel() {
-                                initialCameraMove = false
-                                updateCurrentMarkerAndAddMarkers(map)
-                            }
-                        })
-                    } else {
-                        Log.e("SharedViewModel", "Other user location is null")
-                    }
+                        override fun onCancel() {
+                            initialCameraMove = false
+                            updateCurrentMarkerAndAddMarkers(map)
+                        }
+                    })
+                } else {
+                    Log.e("SharedViewModel", "Driver location is null")
                 }
             }
 
@@ -191,7 +205,6 @@ class SharedViewModel(context: Context) : ViewModel() {
             }
         }
     }
-
 
     fun moveCameraToPosition(latLng: LatLng) {
         googleMap.value?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
@@ -205,7 +218,7 @@ class SharedViewModel(context: Context) : ViewModel() {
         val icCurrent =
             getBitmapDescriptorFromVector(appContext, R.drawable.ic_loc, markerWidth, markerHeight)
 
-        _currentLatLng.value?.let { currentUserLatLng ->
+        currentLatLng.value?.let { currentUserLatLng ->
             val currentUserIconResId = when (_userRole.value) {
                 UserRole.PILOT -> icCurrent
                 UserRole.DRIVER -> icCar
@@ -254,7 +267,8 @@ class SharedViewModel(context: Context) : ViewModel() {
                         }
                     } catch (e: Exception) {
                         Log.e(
-                            "SharedViewModel", "Exception during direction API call: ${e.message}"
+                            "SharedViewModel",
+                            "Exception during direction API call: ${e.message}"
                         )
                     }
                 }
@@ -275,7 +289,6 @@ class SharedViewModel(context: Context) : ViewModel() {
         return waypoints
     }
 
-
     private fun fetchAndDrawRoute(directionResponse: DirectionResponse) {
         viewModelScope.launch {
             try {
@@ -291,7 +304,6 @@ class SharedViewModel(context: Context) : ViewModel() {
             }
         }
     }
-
 
     private fun drawRouteOnMap(
         googleMap: GoogleMap, waypoints: List<LatLng>, hexColor: String = "FF6750A4"
@@ -315,39 +327,7 @@ class SharedViewModel(context: Context) : ViewModel() {
         } else {
             Log.e("SharedViewModel", "No points to add to the polyline")
         }
-
     }
-
-    /*
-        private fun addRoutePoints(points: List<LatLng>, hexColor: String = "FF6750A4") {
-            Log.d("SharedViewModel", "Adding route points: $points")
-
-            // Convert hex color string to integer
-            val color = Color.parseColor("#$hexColor")
-
-            // Determine if the app is in dark mode or light mode
-            val adjustedColor = if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES) {
-                // Dark mode: Adjust color for dark mode
-                adjustColorForDarkMode(color)
-            } else {
-                // Light mode: Use the original color
-                color
-            }
-
-            if (points.isNotEmpty()) {
-                polylineOptions.addAll(points)
-                polylineOptions.color(adjustedColor)
-                googleMap.value?.let { map ->
-                    map.addPolyline(polylineOptions)
-                    Log.d("SharedViewModel", "Polyline added to the map with color: $adjustedColor")
-                } ?: run {
-                    Log.e("SharedViewModel", "GoogleMap instance is null, cannot add polyline")
-                }
-            } else {
-                Log.e("SharedViewModel", "No points to add to the polyline")
-            }
-        }
-    */
 
     private fun adjustColorForDarkMode(color: Int): Int {
         // Example adjustment: Darken the color by reducing brightness
@@ -357,7 +337,6 @@ class SharedViewModel(context: Context) : ViewModel() {
         val b = (Color.blue(color) * factor).toInt()
         return Color.rgb(r, g, b)
     }
-
 
     private fun isLocationOnRoute(
         location: LatLng, routePoints: List<LatLng>, tolerance: Double = 50.0
@@ -395,13 +374,6 @@ class SharedViewModel(context: Context) : ViewModel() {
         vectorDrawable?.draw(canvas)
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
-
-
-    /*    fun clearRoute() {
-            Log.d("SharedViewModel", "Clearing route points")
-            polylineOptions.points.clear()
-            googleMap.value?.clear()
-        }*/
 
     fun addCustomMarker(latLng: LatLng, title: String, snippet: String, iconResId: Int) {
         Log.d(
@@ -468,8 +440,14 @@ class SharedViewModel(context: Context) : ViewModel() {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
                 location?.let {
                     Log.d("SharedViewModel", "Location result: $it for key: $key")
-                    _currentLatLng.postValue(LatLng(it.latitude, it.longitude))
-                    saveLastFetchedLatLng(LatLng(it.latitude, it.longitude))
+                    val latLng = LatLng(it.latitude, it.longitude)
+                    _currentLatLng.postValue(latLng)
+                    saveLastFetchedLatLng(latLng)
+                    if (_userRole.value == UserRole.PILOT) {
+                        pilotLatLng = latLng
+                    } else if (_userRole.value == UserRole.DRIVER) {
+                        driverLatLng = latLng
+                    }
                 } ?: run {
                     Log.e("SharedViewModel", "Location result is null for key: $key")
                 }
@@ -492,6 +470,11 @@ class SharedViewModel(context: Context) : ViewModel() {
                     val latLng = LatLng(location.latitude, location.longitude)
                     updateCurrentLatLng(latLng)
                     saveLastFetchedLatLng(latLng)
+                    if (_userRole.value == UserRole.PILOT) {
+                        pilotLatLng = latLng
+                    } else if (_userRole.value == UserRole.DRIVER) {
+                        driverLatLng = latLng
+                    }
                 }
             }
 
@@ -506,12 +489,20 @@ class SharedViewModel(context: Context) : ViewModel() {
         geoFire.getLocation(key, object : LocationCallback {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
                 Log.d("SharedViewModel", "Location result for key: $key, location: $location")
-                callback(location?.let { LatLng(it.latitude, it.longitude) })
+                val latLng = location?.let { LatLng(it.latitude, it.longitude) }
+                if (_userRole.value == UserRole.PILOT) {
+                    driverLatLng = latLng
+                } else if (_userRole.value == UserRole.DRIVER) {
+                    pilotLatLng = latLng
+                }
+                callback(latLng)
             }
 
             override fun onCancelled(databaseError: DatabaseError?) {
                 Log.e(
-                    "SharedViewModel", "Query cancelled for key: $key", databaseError?.toException()
+                    "SharedViewModel",
+                    "Query cancelled for key: $key",
+                    databaseError?.toException()
                 )
                 callback(null)
             }
@@ -532,7 +523,13 @@ class SharedViewModel(context: Context) : ViewModel() {
                     "SharedViewModel",
                     "Other user location result for key: $key, location: $location"
                 )
-                callback(location?.let { LatLng(it.latitude, it.longitude) })
+                val latLng = location?.let { LatLng(it.latitude, it.longitude) }
+                if (_userRole.value == UserRole.PILOT) {
+                    driverLatLng = latLng
+                } else if (_userRole.value == UserRole.DRIVER) {
+                    pilotLatLng = latLng
+                }
+                callback(latLng)
                 if (location == null) {
                     Log.e("SharedViewModel", "Other user location result is null for key: $key")
                 }
@@ -597,5 +594,6 @@ class SharedViewModel(context: Context) : ViewModel() {
     enum class UserRole {
         PILOT, DRIVER
     }
-
 }
+
+

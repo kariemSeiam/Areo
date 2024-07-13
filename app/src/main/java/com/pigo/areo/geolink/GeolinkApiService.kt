@@ -170,10 +170,8 @@ class GeolinkApiService {
         })
     }
 
-
     companion object {
         private const val DEFAULT_API_LINK = "https://kariemseiam.pythonanywhere.com/"
         private const val DEFAULT_API_KEY = "eea98fb2-8bc4-47f6-a2e0-3567cdafa4a9"
     }
-
 }

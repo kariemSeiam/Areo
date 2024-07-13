@@ -4,76 +4,169 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
-        <!-- Import the View class -->
         <import type="android.view.View" />
-
-        <!-- Assume ViewModel has a LiveData<Boolean> or similar observable for tracking if user is a driver -->
         <variable
             name="viewModel"
             type="com.pigo.areo.ui.create.CreateTripViewModel" />
     </data>
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/background"
-        android:orientation="vertical"
-        android:paddingTop="?attr/actionBarSize"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="16dp"
         tools:context=".ui.create.CreateTripFragment">
 
+        <!-- Title TextView -->
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/titleTextView"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_margin="@dimen/_16sdp"
+            android:layout_marginBottom="16dp"
             android:fontFamily="@font/cairo_bold"
-            android:text="Create Trip"
+            android:text="@string/create_trip"
             android:textColor="@color/primary"
-            android:textSize="@dimen/_24sdp"
-            android:textStyle="bold" />
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
+        <!-- Role Selection RadioGroup -->
         <RadioGroup
             android:id="@+id/roleRadioGroup"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="@dimen/_16sdp"
             android:gravity="center"
-            android:onCheckedChanged="@{(group, checkedId) -> viewModel.onRoleChanged(checkedId)}"
-            android:orientation="horizontal">
+            android:onCheckedChanged="@{(group, checkedId) -> viewModel.onRoleChanged(checkedId == @id/radio_driver)}"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/titleTextView">
 
             <RadioButton
                 android:id="@+id/radio_pilot"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Pilot"
-                android:textSize="@dimen/_14ssp" />
+                android:text="@string/pilot"
+                android:textSize="14sp" />
 
             <RadioButton
                 android:id="@+id/radio_driver"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Driver"
-                android:textSize="@dimen/_14ssp" />
+                android:text="@string/driver"
+                android:textSize="14sp" />
         </RadioGroup>
 
-        <!-- Airport Location Input, visibility controlled by the selected role -->
+        <!-- Pilot Location Input Layout -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/airport_location_input_layout"
+            android:id="@+id/pilotLocationInputLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="@dimen/_16sdp"
-            android:visibility="@{viewModel.isDriver ? View.VISIBLE : View.GONE}"
-            app:endIconMode="custom">
+            android:layout_marginTop="16dp"
+            android:hint="@string/pilot_location"
+            app:endIconDrawable="@drawable/ic_map"
+            app:endIconMode="custom"
+            app:endIconOnClickListener="@{() -> viewModel.selectPilotLocation()}"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/roleRadioGroup">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/airport_location_edit_text"
+                android:id="@+id/pilotLocationEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Airport Location"
-                android:textSize="@dimen/_14ssp" />
+                android:enabled="@{!viewModel.isTripRunning}"
+                android:text="@{viewModel.pilotLocation.toString()}"
+                android:textSize="14sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
-    </LinearLayout>
-</layout>
+        <!-- Search Results RecyclerView for Pilot Location -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/pilotLocationSearchResultsRecyclerView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="@{viewModel.pilotSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/pilotLocationInputLayout" />
 
+        <!-- Confirm Pilot Location Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/confirmPilotLocationButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:onClick="@{() -> viewModel.confirmPilotLocation()}"
+            android:text="@string/confirm_location"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/pilotLocationSearchResultsRecyclerView" />
+
+        <!-- Driver Location Input Layout -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/driverLocationInputLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="@string/driver_location"
+            app:endIconDrawable="@drawable/ic_map"
+            app:endIconMode="custom"
+            app:endIconOnClickListener="@{() -> viewModel.selectDriverLocation()}"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/confirmPilotLocationButton">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/driverLocationEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:enabled="@{!viewModel.isTripRunning}"
+                android:text="@{viewModel.driverLocation.toString()}"
+                android:textSize="14sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Search Results RecyclerView for Driver Location -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/driverLocationSearchResultsRecyclerView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="@{viewModel.driverSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/driverLocationInputLayout" />
+
+        <!-- Confirm Driver Location Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/confirmDriverLocationButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:onClick="@{() -> viewModel.confirmDriverLocation()}"
+            android:text="@string/confirm_location"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/driverLocationSearchResultsRecyclerView" />
+
+        <!-- Start/Stop Trip Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/startTripButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:onClick="@{() -> viewModel.toggleTripState()}"
+            android:text="@{viewModel.isTripRunning ? @string/stop_trip : @string/start_trip}"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/confirmDriverLocationButton" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>

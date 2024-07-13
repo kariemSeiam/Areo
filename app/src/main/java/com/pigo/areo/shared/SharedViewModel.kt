@@ -86,14 +86,29 @@ class SharedViewModel(context: Context) : ViewModel() {
     private val apiService = GeolinkApiService()
 
     // Added local variables for pilot and driver LatLng
-    private var pilotLatLng: LatLng? = null
-    private var driverLatLng: LatLng? = null
+    var pilotLatLng: LatLng? = null
+    var driverLatLng: LatLng? = null
 
     init {
         initializeGeoFire()
         loadUserRole()
         loadLastFetchedLatLng()
     }
+
+    fun updatePilotLatLng(latLng: LatLng) {
+        pilotLatLng = latLng
+        _currentLatLng.value = latLng
+        saveLastFetchedLatLng(latLng)
+        updateLocation("pilot_location", GeoLocation(latLng.latitude, latLng.longitude))
+    }
+
+    fun updateDriverLatLng(latLng: LatLng) {
+        driverLatLng = latLng
+        _currentLatLng.value = latLng
+        saveLastFetchedLatLng(latLng)
+        updateLocation("driver_location", GeoLocation(latLng.latitude, latLng.longitude))
+    }
+
 
     private fun initializeGeoFire() {
         geoFire = GeoFire(databaseReference)
@@ -169,7 +184,8 @@ class SharedViewModel(context: Context) : ViewModel() {
 
             UserRole.PILOT -> {
                 if (driverLatLng != null) {
-                    val bounds = LatLngBounds.Builder().include(latLng).include(driverLatLng!!).build()
+                    val bounds =
+                        LatLngBounds.Builder().include(latLng).include(driverLatLng!!).build()
                     val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
                     map.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
                         override fun onFinish() {
@@ -179,7 +195,7 @@ class SharedViewModel(context: Context) : ViewModel() {
                                 val newZoom = currentZoom - 1f
                                 val zoomUpdate = CameraUpdateFactory.zoomTo(newZoom)
                                 map.animateCamera(zoomUpdate)
-                            }else{
+                            } else {
                                 // Get the current zoom level and decrease it by 1f
                                 val currentZoom = map.cameraPosition.zoom
                                 val newZoom = currentZoom - 0.7f
@@ -267,8 +283,7 @@ class SharedViewModel(context: Context) : ViewModel() {
                         }
                     } catch (e: Exception) {
                         Log.e(
-                            "SharedViewModel",
-                            "Exception during direction API call: ${e.message}"
+                            "SharedViewModel", "Exception during direction API call: ${e.message}"
                         )
                     }
                 }
@@ -350,7 +365,7 @@ class SharedViewModel(context: Context) : ViewModel() {
         return false
     }
 
-    fun calculateDistance(point1: LatLng, point2: LatLng): Double {
+    private fun calculateDistance(point1: LatLng, point2: LatLng): Double {
         val earthRadius = 6371000.0 // meters
         val dLat = Math.toRadians(point2.latitude - point1.latitude)
         val dLng = Math.toRadians(point2.longitude - point1.longitude)
@@ -428,7 +443,7 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
-    private fun startLocationUpdates() {
+    fun startLocationUpdates() {
         val key = when (_userRole.value) {
             UserRole.PILOT -> "pilot_location"
             UserRole.DRIVER -> "driver_location"
@@ -500,16 +515,14 @@ class SharedViewModel(context: Context) : ViewModel() {
 
             override fun onCancelled(databaseError: DatabaseError?) {
                 Log.e(
-                    "SharedViewModel",
-                    "Query cancelled for key: $key",
-                    databaseError?.toException()
+                    "SharedViewModel", "Query cancelled for key: $key", databaseError?.toException()
                 )
                 callback(null)
             }
         })
     }
 
-    fun fetchOtherUserLocation(callback: (LatLng?) -> Unit) {
+    private fun fetchOtherUserLocation(callback: (LatLng?) -> Unit) {
         val key = when (_userRole.value) {
             UserRole.PILOT -> "driver_location"
             UserRole.DRIVER -> "pilot_location"

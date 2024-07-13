@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firebase.geofire.GeoLocation
+import com.firebase.geofire.GeoQueryEventListener
 import com.google.android.gms.maps.model.LatLng
 import com.pigo.areo.geolink.GeolinkApiService
 import com.pigo.areo.geolink.models.SearchResult
@@ -21,8 +22,8 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     private val _pilotLocation = MutableLiveData<String>()
     val pilotLocation: LiveData<String> get() = _pilotLocation
 
-    private val _driverLocation = MutableLiveData<String>()
-    val driverLocation: LiveData<String> get() = _driverLocation
+    private val _airportLocation = MutableLiveData<String>()
+    val airportLocation: LiveData<String> get() = _airportLocation
 
     private val _isTripRunning = MutableLiveData<Boolean>()
     val isTripRunning: LiveData<Boolean> get() = _isTripRunning
@@ -30,19 +31,19 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     private val _selectPilotLocationEvent = MutableLiveData<Unit>()
     val selectPilotLocationEvent: LiveData<Unit> get() = _selectPilotLocationEvent
 
-    private val _selectDriverLocationEvent = MutableLiveData<Unit>()
-    val selectDriverLocationEvent: LiveData<Unit> get() = _selectDriverLocationEvent
+    private val _selectAirportLocationEvent = MutableLiveData<Unit>()
+    val selectAirportLocationEvent: LiveData<Unit> get() = _selectAirportLocationEvent
 
     private val _pilotSearchResults = MutableLiveData<List<SearchResult>>()
     val pilotSearchResults: LiveData<List<SearchResult>> get() = _pilotSearchResults
 
-    private val _driverSearchResults = MutableLiveData<List<SearchResult>>()
-    val driverSearchResults: LiveData<List<SearchResult>> get() = _driverSearchResults
+    private val _airportSearchResults = MutableLiveData<List<SearchResult>>()
+    val airportSearchResults: LiveData<List<SearchResult>> get() = _airportSearchResults
 
     private val geolinkApiService = GeolinkApiService()
 
     private var pilotSearchJob: Job? = null
-    private var driverSearchJob: Job? = null
+    private var airportSearchJob: Job? = null
 
     init {
         sharedViewModel.userRole.observeForever { userRole ->
@@ -50,7 +51,7 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
             if (_isDriver.value == true) {
                 sharedViewModel.driverLatLng?.let {
                     reverseGeocodeLocation(it) { address ->
-                        _driverLocation.value = address
+                        _airportLocation.value = address
                     }
                 }
             } else {
@@ -62,7 +63,22 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
             }
         }
 
-
+        // Observe changes in location to notify when driver/pilot arrives at the location
+        sharedViewModel.currentLatLng.observeForever { currentLatLng ->
+            if (_isDriver.value == true) {
+                sharedViewModel.pilotLatLng?.let { pilotLatLng ->
+                    if (isLocationArrived(currentLatLng, pilotLatLng)) {
+                        // Notify that driver has arrived at the pilot's location
+                    }
+                }
+            } else {
+                sharedViewModel.driverLatLng?.let { driverLatLng ->
+                    if (isLocationArrived(currentLatLng, driverLatLng)) {
+                        // Notify that pilot has arrived at the driver's location
+                    }
+                }
+            }
+        }
     }
 
     fun onRoleChanged(isDriver: Boolean) {
@@ -74,7 +90,7 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
         sharedViewModel.updatePilotLatLng(latLng)
     }
 
-    fun updateDriverLocation(latLng: LatLng) {
+    fun updateAirportLocation(latLng: LatLng) {
         sharedViewModel.updateDriverLatLng(latLng)
     }
 
@@ -84,7 +100,7 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
             sharedViewModel.startLocationUpdates()
         } else {
             sharedViewModel.removeLocation("pilot_location")
-            sharedViewModel.removeLocation("driver_location")
+            sharedViewModel.removeLocation("airport_location")
         }
     }
 
@@ -92,8 +108,8 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
         _selectPilotLocationEvent.value = Unit
     }
 
-    fun selectDriverLocation() {
-        _selectDriverLocationEvent.value = Unit
+    fun selectAirportLocation() {
+        _selectAirportLocationEvent.value = Unit
     }
 
     fun confirmPilotLocation() {
@@ -102,9 +118,9 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
         }
     }
 
-    fun confirmDriverLocation() {
+    fun confirmAirportLocation() {
         sharedViewModel.driverLatLng?.let {
-            sharedViewModel.updateLocation("driver_location", GeoLocation(it.latitude, it.longitude))
+            sharedViewModel.updateLocation("airport_location", GeoLocation(it.latitude, it.longitude))
         }
     }
 
@@ -127,9 +143,9 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
         }
     }
 
-    fun performDriverLocationSearch(query: String) {
-        driverSearchJob?.cancel()
-        driverSearchJob = viewModelScope.launch {
+    fun performAirportLocationSearch(query: String) {
+        airportSearchJob?.cancel()
+        airportSearchJob = viewModelScope.launch {
             delay(2000) // 2 seconds delay
             sharedViewModel.currentLatLng.value?.let { latLng ->
                 geolinkApiService.textSearch(
@@ -137,7 +153,7 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
                     latLng.latitude,
                     latLng.longitude,
                     onSuccess = { response ->
-                        _driverSearchResults.postValue(response.data)
+                        _airportSearchResults.postValue(response.data)
                     },
                     onFailure = { error ->
                         // Handle error
@@ -157,5 +173,27 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
                 }
             }
         }
+    }
+
+    private fun isLocationArrived(currentLatLng: LatLng, targetLatLng: LatLng, threshold: Float = 50f): Boolean {
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(
+            currentLatLng.latitude, currentLatLng.longitude,
+            targetLatLng.latitude, targetLatLng.longitude,
+            results
+        )
+        return results[0] < threshold
+    }
+
+    fun createOrUpdateGeoQuery(id: String, center: GeoLocation, radius: Double) {
+        sharedViewModel.createOrUpdateGeoQuery(id, center, radius)
+    }
+
+    fun addGeoQueryEventListener(id: String, listener: GeoQueryEventListener) {
+        sharedViewModel.addGeoQueryEventListener(id, listener)
+    }
+
+    fun removeGeoQuery(id: String) {
+        sharedViewModel.removeGeoQuery(id)
     }
 }

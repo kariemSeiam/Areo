@@ -45,7 +45,6 @@ class CurrentTripFragment : Fragment() {
         }
 
         binding.fabCurrentLocation.setOnClickListener {
-            sharedViewModel.loginAs(SharedViewModel.UserRole.PILOT)
             if (::gMap.isInitialized) sharedViewModel.centerCameraOnUserLocation()
         }
     }

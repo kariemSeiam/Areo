@@ -10,7 +10,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingTop="@dimen/_60sdp"
+        android:layout_marginTop="?attr/actionBarSize"
         tools:context=".ui.current_trip.CurrentTripFragment">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -102,7 +102,6 @@
                             android:layout_gravity="center"
                             android:layout_marginStart="@dimen/_6sdp"
                             android:fontFamily="@font/cairo_bold"
-                            android:text="23 "
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/ivIconLoc"
                             app:layout_constraintTop_toTopOf="parent" />
@@ -113,10 +112,10 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
                             android:layout_marginEnd="@dimen/_8sdp"
-                            android:visibility="gone"
                             android:fontFamily="@font/cairo_bold"
                             android:text=" km"
                             android:textColor="@color/primary"
+                            android:visibility="gone"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/tvIconLoc"
                             app:layout_constraintTop_toTopOf="parent" />
@@ -131,8 +130,7 @@
                     app:cardBackgroundColor="#336750A4"
                     app:cardCornerRadius="@dimen/_16sdp"
                     app:cardElevation="0dp"
-                    app:strokeWidth="0dp"
-                    >
+                    app:strokeWidth="0dp">
 
 
                     <androidx.constraintlayout.widget.ConstraintLayout
@@ -157,7 +155,6 @@
                             android:layout_gravity="center"
                             android:layout_marginStart="@dimen/_4sdp"
                             android:fontFamily="@font/cairo_bold"
-                            android:text="60"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/ivIconTime"
                             app:layout_constraintTop_toTopOf="parent" />
@@ -170,8 +167,8 @@
                             android:layout_marginEnd="@dimen/_8sdp"
                             android:fontFamily="@font/cairo_bold"
                             android:text=" min"
-                            android:visibility="gone"
                             android:textColor="@color/primary"
+                            android:visibility="gone"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/tvIconTime"
                             app:layout_constraintTop_toTopOf="parent" />

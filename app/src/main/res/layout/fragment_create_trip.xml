@@ -4,7 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
+
         <import type="android.view.View" />
+
         <variable
             name="viewModel"
             type="com.pigo.areo.ui.create.CreateTripViewModel" />
@@ -107,53 +109,53 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/pilotLocationSearchResultsRecyclerView" />
 
-        <!-- Driver Location Input Layout -->
+        <!-- Airport Location Input Layout -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/driverLocationInputLayout"
+            android:id="@+id/airportLocationInputLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:hint="@string/driver_location"
+            android:hint="@string/airport_location"
             app:endIconDrawable="@drawable/ic_map"
             app:endIconMode="custom"
-            app:endIconOnClickListener="@{() -> viewModel.selectDriverLocation()}"
+            app:endIconOnClickListener="@{() -> viewModel.selectAirportLocation()}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/confirmPilotLocationButton">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/driverLocationEditText"
+                android:id="@+id/airportLocationEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:enabled="@{!viewModel.isTripRunning}"
-                android:text="@{viewModel.driverLocation.toString()}"
+                android:text="@{viewModel.airportLocation.toString()}"
                 android:textSize="14sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Search Results RecyclerView for Driver Location -->
+        <!-- Search Results RecyclerView for Airport Location -->
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/driverLocationSearchResultsRecyclerView"
+            android:id="@+id/airportLocationSearchResultsRecyclerView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:visibility="@{viewModel.driverSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
+            android:visibility="@{viewModel.airportSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/driverLocationInputLayout" />
+            app:layout_constraintTop_toBottomOf="@id/airportLocationInputLayout" />
 
-        <!-- Confirm Driver Location Button -->
+        <!-- Confirm Airport Location Button -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/confirmDriverLocationButton"
+            android:id="@+id/confirmAirportLocationButton"
             style="@style/Widget.Material3.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:onClick="@{() -> viewModel.confirmDriverLocation()}"
+            android:onClick="@{() -> viewModel.confirmAirportLocation()}"
             android:text="@string/confirm_location"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/driverLocationSearchResultsRecyclerView" />
+            app:layout_constraintTop_toBottomOf="@id/airportLocationSearchResultsRecyclerView" />
 
         <!-- Start/Stop Trip Button -->
         <com.google.android.material.button.MaterialButton
@@ -166,7 +168,8 @@
             android:text="@{viewModel.isTripRunning ? @string/stop_trip : @string/start_trip}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/confirmDriverLocationButton" />
+            app:layout_constraintTop_toBottomOf="@id/confirmAirportLocationButton" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>
+

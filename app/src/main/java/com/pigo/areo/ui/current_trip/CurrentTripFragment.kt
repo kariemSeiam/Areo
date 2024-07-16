@@ -37,6 +37,20 @@ class CurrentTripFragment : Fragment() {
             // sharedViewModel.addMarkersToMap(googleMap)
         }
 
+        //viewModel.currentTrip.observe(this) { trip ->
+        //            // Update UI with current trip data
+        //        }
+        //        viewModel.deleteTrip(tripId) { success ->
+        //                if (success) {
+        //                    // Trip deleted successfully
+        //                } else {
+        //                    // Failed to delete trip
+        //                }
+        //            }
+        //        viewModel.getTripHistory { trips ->
+        //            // Update UI with trip history
+        //        }
+
         sharedViewModel.routeResponse.observe(viewLifecycleOwner) { routeResponse ->
             routeResponse?.let {
                 binding.tvIconLoc.text = routeResponse.distanceText
@@ -45,8 +59,10 @@ class CurrentTripFragment : Fragment() {
         }
 
         binding.fabCurrentLocation.setOnClickListener {
-            if (::gMap.isInitialized) sharedViewModel.centerCameraOnUserLocation()
+            if (::gMap.isInitialized) sharedViewModel.updateCameraPosition(sharedViewModel.waypoints.value)
         }
+
+
     }
 }
 

@@ -1,19 +1,12 @@
 package com.pigo.areo.geolink
 
-import com.google.gson.Gson
 import com.pigo.areo.geolink.models.DirectionResponse
-import com.pigo.areo.geolink.models.GeocodeResponse
-import com.pigo.areo.geolink.models.GeolinkApiInfoResponse
 import com.pigo.areo.geolink.models.ReverseGeocodeResponse
 import com.pigo.areo.geolink.models.TextSearchResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.HttpException
@@ -29,67 +22,15 @@ class GeolinkApiService {
     private var apiKey: String
 
     init {
-        try {
-            val (link, key) = runBlocking { getGeolinkApiInfo() }
-            apiLink = link
-            apiKey = key
-        } catch (e: IOException) {
-            // Use default values or handle the error as needed
-            apiLink = DEFAULT_API_LINK
-            apiKey = DEFAULT_API_KEY
-        }
+        val (link, key) = "https://geolink.onrender.com" to "eea98fb2-8bc4-47f6-a2e0-3567cdafa4a9"
+        apiLink = link
+        apiKey = key
 
         val retrofit =
             Retrofit.Builder().baseUrl(apiLink).addConverterFactory(GsonConverterFactory.create())
                 .build()
 
         geolinkService = retrofit.create(GeolinkService::class.java)
-    }
-
-    private suspend fun getGeolinkApiInfo(): Pair<String, String> {
-        val apiUrl = "https://dashboard.dinamo-app.com/api/Driver/geo_link"
-        val client = OkHttpClient()
-        val request = Request.Builder().url(apiUrl).build()
-
-        val response = withContext(Dispatchers.IO) {
-            client.newCall(request).execute()
-        }
-
-        if (!response.isSuccessful) {
-            throw IOException("Failed to fetch API information, response code: ${response.code}")
-        }
-
-        val responseBody = response.body?.string()
-        val apiResponse = Gson().fromJson(responseBody, GeolinkApiInfoResponse::class.java)
-
-        if (apiResponse.code == "200" && apiResponse.message == "found" && apiResponse.data != null) {
-            val apiLink = apiResponse.data.api
-            val apiKey = apiResponse.data.key
-            return apiLink to apiKey
-        } else {
-            throw IOException("Invalid API response: $responseBody")
-        }
-    }
-
-    fun geocode(
-        address: String, onSuccess: (GeocodeResponse) -> Unit, onFailure: (String) -> Unit
-    ) {
-        val call = geolinkService.geocode(address, apiKey)
-        call.enqueue(object : Callback<GeocodeResponse> {
-            override fun onResponse(
-                call: Call<GeocodeResponse>, response: Response<GeocodeResponse>
-            ) {
-                if (response.isSuccessful) {
-                    onSuccess(response.body()!!)
-                } else {
-                    onFailure("Error: ${response.code()} ${response.message()}")
-                }
-            }
-
-            override fun onFailure(call: Call<GeocodeResponse>, t: Throwable) {
-                onFailure("Error: ${t.message}")
-            }
-        })
     }
 
     fun reverseGeocode(
@@ -170,8 +111,5 @@ class GeolinkApiService {
         })
     }
 
-    companion object {
-        private const val DEFAULT_API_LINK = "https://kariemseiam.pythonanywhere.com/"
-        private const val DEFAULT_API_KEY = "eea98fb2-8bc4-47f6-a2e0-3567cdafa4a9"
-    }
+
 }

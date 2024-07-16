@@ -18,21 +18,29 @@ class SearchResultAdapter(
         notifyDataSetChanged()
     }
 
+    fun clearItems() {
+        items.clear()
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchResultViewHolder {
         val binding = ItemSearchResultBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return SearchResultViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: SearchResultViewHolder, position: Int) {
-        holder.bind(items[position], onItemClick)
+        holder.bind(items[position], onItemClick, ::clearItems)
     }
 
     override fun getItemCount(): Int = items.size
 
     class SearchResultViewHolder(private val binding: ItemSearchResultBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(item: SearchResult, onItemClick: (SearchResult) -> Unit) {
+        fun bind(item: SearchResult, onItemClick: (SearchResult) -> Unit, clearItems: () -> Unit) {
             binding.searchResult = item
-            binding.root.setOnClickListener { onItemClick(item) }
+            binding.root.setOnClickListener {
+                onItemClick(item)
+                clearItems()
+            }
             binding.executePendingBindings()
         }
     }

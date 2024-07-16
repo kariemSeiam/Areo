@@ -10,11 +10,14 @@ import com.google.android.gms.maps.model.LatLng
 import com.pigo.areo.geolink.GeolinkApiService
 import com.pigo.areo.geolink.models.SearchResult
 import com.pigo.areo.shared.SharedViewModel
+import com.pigo.areo.shared.SharedViewModel.UserRole
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewModel() {
+
+    private val geolinkApiService = GeolinkApiService()
 
     private val _isDriver = MutableLiveData<Boolean>()
     val isDriver: LiveData<Boolean> get() = _isDriver
@@ -40,41 +43,48 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     private val _airportSearchResults = MutableLiveData<List<SearchResult>>()
     val airportSearchResults: LiveData<List<SearchResult>> get() = _airportSearchResults
 
-    private val geolinkApiService = GeolinkApiService()
-
     private var pilotSearchJob: Job? = null
     private var airportSearchJob: Job? = null
 
     init {
+        observeUserRole()
+        observeCurrentLocation()
+    }
+
+    private fun observeUserRole() {
         sharedViewModel.userRole.observeForever { userRole ->
-            _isDriver.value = (userRole == SharedViewModel.UserRole.DRIVER)
-            if (_isDriver.value == true) {
-                sharedViewModel.driverLatLng?.let {
-                    reverseGeocodeLocation(it) { address ->
-                        _airportLocation.value = address
-                    }
-                }
-            } else {
-                sharedViewModel.pilotLatLng?.let { latLng ->
-                    reverseGeocodeLocation(latLng) { address ->
-                        _pilotLocation.value = address
-                    }
+            val isDriver = userRole == UserRole.DRIVER
+            _isDriver.value = isDriver
+
+            val location =
+                if (isDriver) sharedViewModel.driverLatLng else sharedViewModel.pilotLatLng
+            location?.let {
+                reverseGeocodeLocation(it) { address ->
+                    setInitialLocation(
+                        address,
+                        isDriver
+                    )
                 }
             }
         }
+    }
 
-        // Observe changes in location to notify when driver/pilot arrives at the location
+    private fun setInitialLocation(address: String, isDriver: Boolean) {
+        if (isDriver) {
+            _airportLocation.value = address
+        } else {
+            _pilotLocation.value = address
+        }
+    }
+
+    private fun observeCurrentLocation() {
         sharedViewModel.currentLatLng.observeForever { currentLatLng ->
-            if (_isDriver.value == true) {
-                sharedViewModel.pilotLatLng?.let { pilotLatLng ->
-                    if (isLocationArrived(currentLatLng, pilotLatLng)) {
-                        // Notify that driver has arrived at the pilot's location
-                    }
-                }
-            } else {
-                sharedViewModel.driverLatLng?.let { driverLatLng ->
-                    if (isLocationArrived(currentLatLng, driverLatLng)) {
-                        // Notify that pilot has arrived at the driver's location
+            _isDriver.value?.let { isDriver ->
+                val targetLatLng =
+                    if (isDriver) sharedViewModel.pilotLatLng else sharedViewModel.driverLatLng
+                targetLatLng?.let {
+                    if (isLocationArrived(currentLatLng, it)) {
+                        // Notify arrival at the location
                     }
                 }
             }
@@ -83,8 +93,10 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
 
     fun onRoleChanged(isDriver: Boolean) {
         _isDriver.value = isDriver
-        sharedViewModel.switchUserRole()
+        val userRole = if (isDriver) UserRole.DRIVER else UserRole.PILOT
+        sharedViewModel.loginAs(userRole)
     }
+
 
     fun updatePilotLocation(latLng: LatLng) {
         sharedViewModel.updatePilotLatLng(latLng)
@@ -95,8 +107,9 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     }
 
     fun toggleTripState() {
-        _isTripRunning.value = !(_isTripRunning.value ?: false)
-        if (_isTripRunning.value == true) {
+        val newState = !(_isTripRunning.value ?: false)
+        _isTripRunning.value = newState
+        if (newState) {
             sharedViewModel.startLocationUpdates()
         } else {
             sharedViewModel.removeLocation("pilot_location")
@@ -120,44 +133,35 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
 
     fun confirmAirportLocation() {
         sharedViewModel.driverLatLng?.let {
-            sharedViewModel.updateLocation("airport_location", GeoLocation(it.latitude, it.longitude))
+            sharedViewModel.updateLocation(
+                "airport_location",
+                GeoLocation(it.latitude, it.longitude)
+            )
         }
     }
 
     fun performPilotLocationSearch(query: String) {
         pilotSearchJob?.cancel()
-        pilotSearchJob = viewModelScope.launch {
-            delay(2000) // 2 seconds delay
-            sharedViewModel.currentLatLng.value?.let { latLng ->
-                geolinkApiService.textSearch(
-                    query,
-                    latLng.latitude,
-                    latLng.longitude,
-                    onSuccess = { response ->
-                        _pilotSearchResults.postValue(response.data)
-                    },
-                    onFailure = { error ->
-                        // Handle error
-                    })
-            }
-        }
+        pilotSearchJob = performLocationSearch(query, _pilotSearchResults)
     }
 
     fun performAirportLocationSearch(query: String) {
         airportSearchJob?.cancel()
-        airportSearchJob = viewModelScope.launch {
-            delay(2000) // 2 seconds delay
+        airportSearchJob = performLocationSearch(query, _airportSearchResults)
+    }
+
+    private fun performLocationSearch(
+        query: String,
+        resultsLiveData: MutableLiveData<List<SearchResult>>
+    ): Job {
+        return viewModelScope.launch {
+            delay(500)
             sharedViewModel.currentLatLng.value?.let { latLng ->
-                geolinkApiService.textSearch(
-                    query,
+                geolinkApiService.textSearch(query,
                     latLng.latitude,
                     latLng.longitude,
-                    onSuccess = { response ->
-                        _airportSearchResults.postValue(response.data)
-                    },
-                    onFailure = { error ->
-                        // Handle error
-                    })
+                    onSuccess = { response -> resultsLiveData.postValue(response.data) },
+                    onFailure = { /* Handle error */ })
             }
         }
     }
@@ -166,20 +170,24 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
         viewModelScope.launch {
             geolinkApiService.reverseGeocode(latLng.latitude, latLng.longitude).collect { result ->
                 result.onSuccess { response ->
-                    val address = "${response.data.address}, ${response.data.subAddress}"
+                    val address = response.data.address
                     callback(address)
-                }.onFailure {
-                    // Handle failure
-                }
+                }.onFailure { /* Handle failure */ }
             }
         }
     }
 
-    private fun isLocationArrived(currentLatLng: LatLng, targetLatLng: LatLng, threshold: Float = 50f): Boolean {
+    private fun isLocationArrived(
+        currentLatLng: LatLng,
+        targetLatLng: LatLng,
+        threshold: Float = 50f
+    ): Boolean {
         val results = FloatArray(1)
         android.location.Location.distanceBetween(
-            currentLatLng.latitude, currentLatLng.longitude,
-            targetLatLng.latitude, targetLatLng.longitude,
+            currentLatLng.latitude,
+            currentLatLng.longitude,
+            targetLatLng.latitude,
+            targetLatLng.longitude,
             results
         )
         return results[0] < threshold

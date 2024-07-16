@@ -27,8 +27,6 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.pigo.areo.databinding.ActivityMainBinding
 import com.pigo.areo.shared.SharedViewModel
 import com.pigo.areo.shared.SharedViewModelFactory
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -75,6 +73,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
                     updateLocationOnMap(location)
+                    sharedViewModel.addTripLocation(
+                        LatLng(location.latitude, location.longitude),
+                        location.speed
+                    )
                 }
             }
         }
@@ -141,6 +143,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if (::gMap.isInitialized && isFirstUpdate) {
             animateCameraToLocation(currentLatLng)
+
             isFirstUpdate = false
         }
 
@@ -176,9 +179,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // Start a new coroutine for periodic camera update
         cameraUpdateJob = lifecycleScope.launch {
             while (isActive) {
-                delay(10000) // Delay for 10 seconds
+                val userRole = sharedViewModel.userRole.value
+                if (userRole != null && userRole == SharedViewModel.UserRole.DRIVER) delay(3000) else delay(
+                    5000
+                )
                 updateCameraPosition()
-                sharedViewModel.centerCameraOnUserLocation()
+                sharedViewModel.updateCameraPosition(sharedViewModel.waypoints.value)
             }
         }
     }
@@ -206,7 +212,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         sharedViewModel.setGoogleMap(googleMap)
         gMap = googleMap
         changeMapStyle()
-        Log.e("TestGamp", "onMapReady  ${gMap == googleMap}")
         // Setup map here (e.g., set markers, move camera)
     }
 

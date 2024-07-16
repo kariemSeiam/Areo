@@ -1,17 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- General strings -->
     <string name="app_name">Areo</string>
-
     <string name="create_trip">Create Trip</string>
     <string name="settings">Settings</string>
     <string name="trip_details">Trip Details</string>
+    <string name="confirm">Confirm</string>
+
+    <!-- Role selection strings -->
+    <string name="select_role">Select your role:</string>
     <string name="pilot">Pilot</string>
     <string name="driver">Driver</string>
+
+    <!-- Pilot screen strings -->
     <string name="pilot_location">Pilot Location</string>
+    <string name="select_pilot_location">Select Pilot Location</string>
+    <string name="airport_location">Airport Location</string>
+    <string name="select_airport_location">Select Airport Location</string>
+    <string name="confirm_locations">Confirm Locations</string>
+
+    <!-- Driver screen strings -->
     <string name="driver_location">Driver Location</string>
+    <string name="select_driver_location">Select Driver Location</string>
+    <string name="destination_location">Destination Location</string>
+    <string name="select_destination_location">Select Destination Location</string>
+
+    <!-- General trip management strings -->
     <string name="start_trip">Start Trip</string>
     <string name="stop_trip">Stop Trip</string>
     <string name="confirm_location">Confirm Location</string>
-    <string name="airport_location">Airport Location</string>
-
 </resources>
-

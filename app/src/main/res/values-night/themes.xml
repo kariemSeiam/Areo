@@ -5,7 +5,17 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="fontFamily">@font/cairo</item>
+        <item name="android:fontFamily">@font/cairo</item>
         <!-- Ensure content is not obscured by the system bars -->
 
     </style>
+
+    <style name="StartTripStateButton" parent="Widget.Material3.Button">
+        <item name="android:backgroundTint">@color/start_trip</item>
+    </style>
+    <style name="StopTripStateButton" parent="Widget.Material3.Button">
+        <item name="android:backgroundTint">@color/stop_trip</item>
+    </style>
+
 </resources>

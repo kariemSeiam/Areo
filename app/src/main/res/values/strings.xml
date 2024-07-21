@@ -29,4 +29,5 @@
     <string name="start_trip">Start Trip</string>
     <string name="stop_trip">Stop Trip</string>
     <string name="confirm_location">Confirm Location</string>
+    <string name="loading">estimating…</string>
 </resources>

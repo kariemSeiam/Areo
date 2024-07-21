@@ -7,5 +7,9 @@ data class Trip(
     val startTime: Long,
     val endTime: Long?,
     val coordinates: List<LatLng>,
-    val speeds: List<Float>
+    val speeds: List<Float>,
+    val startTrip: Boolean = false,
+    val arrivedAtPilot: Boolean = false,
+    val arrivedAtAirport: Boolean = false
 )
+

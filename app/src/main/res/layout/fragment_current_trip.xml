@@ -27,55 +27,23 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <ImageView
-                android:id="@+id/account"
-                android:layout_width="@dimen/_40sdp"
-                android:layout_height="@dimen/_40sdp"
-                android:layout_marginStart="@dimen/_16sdp"
-                android:layout_marginTop="@dimen/_16sdp"
-                android:scaleType="fitCenter"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/ic_driver" />
+
+
 
             <LinearLayout
-                android:id="@+id/statuesLayout"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/_8sdp"
-                android:layout_marginTop="@dimen/_24sdp"
-                android:layout_marginEnd="@dimen/_16sdp"
-                android:background="@drawable/received_message_bg"
-                android:paddingHorizontal="@dimen/_16sdp"
-                android:paddingVertical="@dimen/_4sdp"
-                app:layout_constraintStart_toEndOf="@id/account"
-                app:layout_constraintTop_toTopOf="@id/account">
-
-                <TextView
-                    android:id="@+id/message_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/cairo"
-                    android:text="Driver is coming"
-                    android:textColor="?attr/actionModeSplitBackground"
-                    android:textSize="@dimen/_12ssp" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                app:layout_constraintBottom_toBottomOf="@id/statuesLayout"
+                android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/statuesLayout"
-                app:layout_constraintTop_toTopOf="@id/statuesLayout">
+                android:gravity="center"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="@dimen/_80sdp"
-                    android:layout_height="@dimen/_30sdp"
-                    android:layout_marginBottom="@dimen/_16sdp"
-                    app:cardBackgroundColor="#336750A4"
+                    android:layout_width="@dimen/_100sdp"
+                    android:layout_height="@dimen/_40sdp"
+                    android:layout_marginHorizontal="@dimen/_16sdp"
+                    app:cardBackgroundColor="#4D6750A4"
                     app:cardCornerRadius="@dimen/_16sdp"
                     app:cardElevation="0dp"
                     app:strokeWidth="0dp">
@@ -88,7 +56,7 @@
                             android:id="@+id/ivIconLoc"
                             android:layout_width="@dimen/_18sdp"
                             android:layout_height="@dimen/_18sdp"
-                            android:layout_marginStart="@dimen/_9sdp"
+                            android:layout_marginStart="@dimen/_12sdp"
                             android:src="@drawable/ic_distance"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toStartOf="@id/tvIconLoc"
@@ -100,6 +68,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
+                            android:hint="@string/loading"
                             android:layout_marginStart="@dimen/_6sdp"
                             android:fontFamily="@font/cairo_bold"
                             app:layout_constraintBottom_toBottomOf="parent"
@@ -125,9 +94,10 @@
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="@dimen/_80sdp"
-                    android:layout_height="@dimen/_30sdp"
-                    app:cardBackgroundColor="#336750A4"
+                    android:layout_width="@dimen/_100sdp"
+                    android:layout_height="@dimen/_40sdp"
+                    app:cardBackgroundColor="#4D6750A4"
+                    android:layout_marginHorizontal="@dimen/_16sdp"
                     app:cardCornerRadius="@dimen/_16sdp"
                     app:cardElevation="0dp"
                     app:strokeWidth="0dp">
@@ -141,7 +111,7 @@
                             android:id="@+id/ivIconTime"
                             android:layout_width="@dimen/_20sdp"
                             android:layout_height="@dimen/_20sdp"
-                            android:layout_marginStart="@dimen/_8sdp"
+                            android:layout_marginStart="@dimen/_12sdp"
                             android:src="@drawable/ic_time"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toStartOf="@id/tvIconTime"
@@ -154,6 +124,7 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
                             android:layout_marginStart="@dimen/_4sdp"
+                            android:hint="@string/loading"
                             android:fontFamily="@font/cairo_bold"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/ivIconTime"

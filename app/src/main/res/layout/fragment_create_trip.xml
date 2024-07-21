@@ -12,220 +12,255 @@
             type="com.pigo.areo.ui.create.CreateTripViewModel" />
     </data>
 
-    <ScrollView
+
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        tools:context=".ui.create.CreateTripFragment">
 
 
-        <FrameLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/selectingLayout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <com.google.android.material.internal.BaselineLayout
+                android:id="@+id/lineCenter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginBottom="@dimen/_25sdp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/iconLocation"
+                android:layout_width="@dimen/_64sdp"
+                android:layout_height="@dimen/_64sdp"
+                android:layout_marginBottom="@dimen/_minus8sdp"
+                android:src="@drawable/ic_location_select"
+                app:layout_constraintBottom_toTopOf="@id/lineCenter"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <TextView
+                android:id="@+id/textCurrentAddress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="?actionBarSize"
+                android:fontFamily="@font/cairo_bold"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingHorizontal="@dimen/_16sdp"
+                android:paddingVertical="@dimen/_8sdp"
+                android:textColor="#d0bcff"
+                android:textSize="@dimen/_18ssp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/textCurrentSubAddress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingHorizontal="@dimen/_16sdp"
+                android:paddingVertical="@dimen/_8sdp"
+                android:textColor="#d0bcff"
+                android:textSize="@dimen/_14ssp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/textCurrentAddress" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonConfirmAddress"
+                android:layout_width="@dimen/_100sdp"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/_80sdp"
+                android:text="@string/confirm"
+                android:textStyle="bold"
+                app:elevation="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/loginLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/background"
             android:paddingHorizontal="@dimen/_16sdp"
             android:paddingVertical="?actionBarSize"
-            tools:context=".ui.create.CreateTripFragment">
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
+            <!-- Title TextView -->
+            <TextView
+                android:id="@+id/titleLoginAs"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                android:id="@+id/loginLayout"
-                android:visibility="visible"
-                >
-
-                <!-- Title TextView -->
-                <TextView
-                    android:id="@+id/titleLoginAs"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:fontFamily="@font/cairo_bold"
-                    android:text="Login As"
-                    android:textColor="@color/primary"
-                    android:textSize="24sp"
-                    android:gravity="center"
-                    android:textStyle="bold"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                android:layout_marginBottom="16dp"
+                android:fontFamily="@font/cairo_bold"
+                android:gravity="center"
+                android:text="Login As"
+                android:textColor="@color/primary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
 
-                <!-- Role Selection RadioGroup -->
-                <RadioGroup
-                    android:id="@+id/roleRadioGroup"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:onCheckedChanged="@{(group, checkedId) -> viewModel.onRoleChanged(checkedId == @id/radio_driver)}"
-                    android:orientation="horizontal"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/titleLoginAs">
 
-                    <RadioButton
-                        android:id="@+id/radio_pilot"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/pilot"
-                        android:textSize="14sp" />
 
-                    <RadioButton
-                        android:id="@+id/radio_driver"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/driver"
-                        android:textSize="14sp" />
-                </RadioGroup>
-
-                <Button
-                    android:id="@+id/btnRoleConfirm"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:layout_constraintTop_toBottomOf="@id/roleRadioGroup"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    android:layout_margin="@dimen/_16sdp"
-                    android:text="@string/confirm"
-                    />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/driverLayout"
-                android:layout_width="match_parent"
+            <Button
+                android:id="@+id/btnRoleConfirm"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                >
+                android:layout_margin="@dimen/_16sdp"
+                android:text="@string/confirm"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                />
 
-                <!-- Title TextView -->
-                <TextView
-                    android:id="@+id/titleTextView"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:fontFamily="@font/cairo_bold"
-                    android:text="@string/create_trip"
-                    android:textColor="@color/primary"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/driverLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/background"
+            android:paddingHorizontal="@dimen/_16sdp"
+            android:paddingVertical="?actionBarSize"
+            android:visibility="visible">
 
-                <!-- Pilot Location Input Layout -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/pilotLocationInputLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:hint="@string/pilot_location"
-                    app:endIconDrawable="@drawable/ic_map"
-                    app:endIconMode="custom"
-                    app:endIconOnClickListener="@{() -> viewModel.selectPilotLocation()}"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/titleTextView"
-                    >
+            <!-- Title TextView -->
+            <TextView
+                android:id="@+id/titleTextView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:fontFamily="@font/cairo_bold"
+                android:text="@string/create_trip"
+                android:textColor="@color/primary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@id/roleRadioGroup"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/pilotLocationEditText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:enabled="@{!viewModel.isTripRunning}"
-                        android:text="@{viewModel.pilotLocation.toString()}"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
+            <!-- Role Selection RadioGroup -->
+            <RadioGroup
+                android:id="@+id/roleRadioGroup"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:onCheckedChanged="@{(group, checkedId) -> viewModel.onRoleChanged(checkedId == @id/radio_driver)}"
+                android:orientation="horizontal"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/titleTextView"
+                app:layout_constraintTop_toTopOf="@id/titleTextView"
+                app:layout_constraintBottom_toBottomOf="@id/titleTextView">
 
-                <!-- Search Results RecyclerView for Pilot Location -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/pilotLocationSearchResultsRecyclerView"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:visibility="@{viewModel.pilotSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/pilotLocationInputLayout" />
-
-                <!-- Confirm Pilot Location Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/confirmPilotLocationButton"
-                    style="@style/Widget.Material3.Button"
+                <RadioButton
+                    android:id="@+id/radio_pilot"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:onClick="@{() -> viewModel.confirmPilotLocation()}"
-                    android:text="@string/confirm_location"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/pilotLocationSearchResultsRecyclerView" />
+                    android:text="@string/pilot"
+                    android:textSize="14sp" />
 
-                <!-- Airport Location Input Layout -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/airportLocationInputLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:hint="@string/airport_location"
-                    app:endIconDrawable="@drawable/ic_map"
-                    app:endIconMode="custom"
-                    app:endIconOnClickListener="@{() -> viewModel.selectAirportLocation()}"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/confirmPilotLocationButton">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/airportLocationEditText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:enabled="@{!viewModel.isTripRunning}"
-                        android:text="@{viewModel.airportLocation.toString()}"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Search Results RecyclerView for Airport Location -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/airportLocationSearchResultsRecyclerView"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:visibility="@{viewModel.airportSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/airportLocationInputLayout" />
-
-                <!-- Confirm Airport Location Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/confirmAirportLocationButton"
-                    style="@style/Widget.Material3.Button"
+                <RadioButton
+                    android:id="@+id/radio_driver"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:onClick="@{() -> viewModel.confirmAirportLocation()}"
-                    android:text="@string/confirm_location"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/airportLocationSearchResultsRecyclerView" />
+                    android:text="@string/driver"
+                    android:textSize="14sp" />
+            </RadioGroup>
 
-                <!-- Start/Stop Trip Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/startTripButton"
-                    style="@style/Widget.Material3.Button"
-                    android:layout_width="0dp"
+
+            <!-- Pilot Location Input Layout -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/pilotLocationInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="@string/pilot_location"
+                android:enabled="false"
+                app:endIconDrawable="@drawable/ic_map"
+                app:endIconMode="custom"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/titleTextView">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/pilotLocationEditText"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:onClick="@{() -> viewModel.toggleTripState()}"
-                    android:text="@{viewModel.isTripRunning ? @string/stop_trip : @string/start_trip}"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/confirmAirportLocationButton" />
+                    android:enabled="@{!viewModel.isTripRunning}"
+                    android:text="@{viewModel.pilotLocation.toString()}"
+                    android:textSize="14sp" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Airport Location Input Layout -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/airportLocationInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="@string/airport_location"
+                app:endIconDrawable="@drawable/ic_map"
+                app:endIconMode="custom"
+                app:endIconOnClickListener="@{() -> viewModel.selectAirportLocation()}"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/pilotLocationInputLayout">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/airportLocationEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:enabled="@{!viewModel.isTripRunning}"
+                    android:text="@{viewModel.airportLocation.toString()}"
+                    android:textSize="14sp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Search Results RecyclerView for Airport Location -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/airportLocationSearchResultsRecyclerView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_8sdp"
+                android:visibility="@{viewModel.airportSearchResults.size() > 0 ? View.VISIBLE : View.GONE}"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/airportLocationInputLayout" />
+
+            <!-- layout.xml -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/startTripButton"
+                style="@style/StartTripStateButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:onClick="@{() -> viewModel.toggleTripState()}"
+                android:text="@{viewModel.isTripRunning ? @string/stop_trip : @string/start_trip}"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/airportLocationSearchResultsRecyclerView"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginVertical="@dimen/_24sdp"
+                />
 
 
 
-        </FrameLayout>
-    </ScrollView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    </FrameLayout>
 </layout>

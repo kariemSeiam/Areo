@@ -12,5 +12,7 @@
     <color name="on_surface">#E0E0E0</color>
     <color name="on_error">#000000</color>
     <color name="back_cards">#FF322C4C</color>
+    <color name="start_trip">#6750a4</color>
+    <color name="stop_trip">#B71C1C</color>
 
 </resources>

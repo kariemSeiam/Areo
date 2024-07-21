@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <data>
+
         <variable
             name="searchResult"
             type="com.pigo.areo.geolink.models.SearchResult" />
@@ -11,10 +12,10 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="@dimen/_8sdp"
+        android:layout_margin="@dimen/_4sdp"
         app:cardCornerRadius="@dimen/_8sdp"
-        app:strokeWidth="0dp"
-        app:cardElevation="@dimen/_1sdp">
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -26,11 +27,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/_4sdp"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:text="@{searchResult.shortAddress}"
                 android:textSize="@dimen/_14ssp"
                 android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -39,10 +40,10 @@
                 android:id="@+id/longAddressTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:text="@{searchResult.longAddress}"
                 android:textSize="@dimen/_12ssp"
-                android:maxLines="1"
-                android:ellipsize="end"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/shortAddressTextView" />

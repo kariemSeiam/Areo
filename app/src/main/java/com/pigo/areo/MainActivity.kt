@@ -74,8 +74,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 locationResult.lastLocation?.let { location ->
                     updateLocationOnMap(location)
                     sharedViewModel.addTripLocation(
-                        LatLng(location.latitude, location.longitude),
-                        location.speed
+                        LatLng(location.latitude, location.longitude), location.speed
                     )
                 }
             }
@@ -180,7 +179,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         cameraUpdateJob = lifecycleScope.launch {
             while (isActive) {
                 val userRole = sharedViewModel.userRole.value
-                if (userRole != null && userRole == SharedViewModel.UserRole.DRIVER) delay(3000) else delay(
+                if (userRole != null && userRole == SharedViewModel.UserRole.DRIVER) delay(1500) else delay(
                     5000
                 )
                 updateCameraPosition()
@@ -211,6 +210,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         sharedViewModel.setGoogleMap(googleMap)
         gMap = googleMap
+        val uiSettings = gMap.uiSettings
+
+        // Disable compass
+        uiSettings.isCompassEnabled = false
+
+        // Disable my location button
+        uiSettings.isMyLocationButtonEnabled = false
+
+        // Disable map toolbar
+        uiSettings.isMapToolbarEnabled = false
+
+        // Disable indoor level picker
+        uiSettings.isIndoorLevelPickerEnabled = false
+
         changeMapStyle()
         // Setup map here (e.g., set markers, move camera)
     }

@@ -1,6 +1,8 @@
 package com.pigo.areo
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -37,24 +39,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityMainBinding
     private lateinit var gMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
     private lateinit var appBarConfiguration: AppBarConfiguration
     private val sharedViewModel: SharedViewModel by viewModels {
         SharedViewModelFactory(applicationContext)
     }
 
+    private var cameraUpdateJob: Job? = null // Coroutine job for periodic camera update
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true && permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            fetchLastKnownLocation()
             startLocationUpdates()
             startPeriodicCameraUpdate()
         } else {
             // Handle permission denied scenario
+            Log.e("PermissionError", "Location permissions were denied.")
         }
     }
-
-    private var cameraUpdateJob: Job? = null // Coroutine job for periodic camera update
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,22 +66,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setupNavigation()
 
-
         val mapFragment =
             supportFragmentManager.findFragmentById(R.id.map_fragment_container) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                locationResult.lastLocation?.let { location ->
-                    updateLocationOnMap(location)
-                    sharedViewModel.addTripLocation(
-                        LatLng(location.latitude, location.longitude), location.speed
-                    )
-                }
-            }
-        }
 
         requestLocationPermissions()
     }
@@ -90,6 +82,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
                 this, Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED -> {
+                fetchLastKnownLocation()
                 startLocationUpdates()
                 startPeriodicCameraUpdate()
             }
@@ -105,30 +98,66 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    private fun fetchLastKnownLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                if (location != null) {
+                    updateLocationOnMap(location)
+                } else {
+                    Log.w("LocationWarning", "Last known location is null.")
+                    if (ActivityCompat.checkSelfPermission(
+                            this, Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                            this, Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        // Open location settings if permission is granted and location data is null
+                        openLocationSettings()
+                    }
+                }
+            }.addOnFailureListener { exception ->
+                Log.e("LocationError", "Failed to get last known location: ${exception.message}")
+            }
+        } else {
+            Log.e("PermissionError", "Location permissions are not granted.")
+        }
+    }
+
     private fun startLocationUpdates() {
-        // Check if permissions are granted
         if (ActivityCompat.checkSelfPermission(
                 this, Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
                 this, Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // Permissions not granted, handle it as needed (e.g., request permissions)
             return
         }
 
-        // Permissions granted, proceed to request location updates
         val locationRequest = LocationRequest.create().apply {
             interval = 4000
             fastestInterval = 3000
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
 
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
+        fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    updateLocationOnMap(location)
+                    sharedViewModel.addTripLocation(
+                        LatLng(location.latitude, location.longitude), location.speed
+                    )
+                }
+            }
+        }, null)
     }
 
     private var isFirstUpdate = true
-
 
     private fun updateLocationOnMap(location: Location) {
         val currentLatLng = LatLng(location.latitude, location.longitude)
@@ -142,11 +171,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if (::gMap.isInitialized && isFirstUpdate) {
             animateCameraToLocation(currentLatLng)
-
             isFirstUpdate = false
         }
-
-
     }
 
     private fun animateCameraToLocation(latLng: LatLng) {
@@ -162,47 +188,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.tripDetailsFragment,
-                R.id.createTripFragment,
-                R.id.currentTripFragment,
-                R.id.settingsFragment
+                R.id.tripDetailsFragment, R.id.createTripFragment, R.id.currentTripFragment
             )
         )
         binding.bottomNavigation.setupWithNavController(navController)
     }
 
     private fun startPeriodicCameraUpdate() {
-        // Cancel previous job if exists
         cameraUpdateJob?.cancel()
-
-        // Start a new coroutine for periodic camera update
         cameraUpdateJob = lifecycleScope.launch {
             while (isActive) {
                 val userRole = sharedViewModel.userRole.value
-                if (userRole != null && userRole == SharedViewModel.UserRole.DRIVER) delay(1500) else delay(
-                    5000
-                )
-                updateCameraPosition()
-                sharedViewModel.updateCameraPosition(sharedViewModel.waypoints.value)
-            }
-        }
-    }
-
-    private fun updateCameraPosition() {
-        if (ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // Permissions not granted, handle it as needed (e.g., request permissions)
-            return
-        }
-
-        // Check if last known location is available
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            location?.let {
-                updateLocationOnMap(location)
+                sharedViewModel.updateCameraPosition()
+                delay(if (userRole == SharedViewModel.UserRole.DRIVER) 1500 else 5000)
             }
         }
     }
@@ -212,20 +210,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         gMap = googleMap
         val uiSettings = gMap.uiSettings
 
-        // Disable compass
         uiSettings.isCompassEnabled = false
-
-        // Disable my location button
         uiSettings.isMyLocationButtonEnabled = false
-
-        // Disable map toolbar
         uiSettings.isMapToolbarEnabled = false
-
-        // Disable indoor level picker
         uiSettings.isIndoorLevelPickerEnabled = false
 
         changeMapStyle()
-        // Setup map here (e.g., set markers, move camera)
     }
 
     override fun onDestroy() {
@@ -236,5 +226,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun changeMapStyle() {
         val style = MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style)
         gMap.setMapStyle(style)
+    }
+
+    private fun openLocationSettings() {
+        val intent = Intent().apply {
+            component = ComponentName(
+                "com.android.settings", "com.android.settings.Settings\$LocationSettingsActivity"
+            )
+        }
+        startActivity(intent)
     }
 }

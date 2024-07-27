@@ -10,6 +10,11 @@
 
     <!-- Required for apps targeting Android 10 (API level 29) or higher -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
 
     <application
         android:allowBackup="true"
@@ -27,10 +32,17 @@
             android:name="preloaded_fonts"
             android:resource="@array/preloaded_fonts" />
 
+        <service
+            android:name=".LocationService"
+            android:exported="false"
+            android:foregroundServiceType="location"
+            android:process=":locationServiceProcess" />
+
+
         <activity
             android:name=".MainActivity"
-            android:windowSoftInputMode="adjustPan"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustPan">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

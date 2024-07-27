@@ -52,7 +52,7 @@ class CreateTripFragment : Fragment() {
         setupClickListeners()
         setupRecyclerView()
         setupTextWatchers()
-        setUpObservers() // Moved to after binding setup
+        setUpObservers()
 
         return binding.root
     }

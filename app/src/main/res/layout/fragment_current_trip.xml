@@ -20,27 +20,27 @@
             android:layout_gravity="bottom|end"
             android:layout_marginEnd="@dimen/_16sdp"
             android:layout_marginBottom="@dimen/_80sdp"
-            app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Primary"
-            app:srcCompat="@drawable/ic_gps" />
+            app:shapeAppearance="@style/ThemeOverlay.Material3.FloatingActionButton.Surface"
+            app:srcCompat="@drawable/ic_compass1"
+            />
+
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
 
-
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
-                android:gravity="center"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="@dimen/_100sdp"
+                    android:layout_width="wrap_content"
                     android:layout_height="@dimen/_40sdp"
                     android:layout_marginHorizontal="@dimen/_16sdp"
                     app:cardBackgroundColor="#4D6750A4"
@@ -68,36 +68,25 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:hint="@string/loading"
-                            android:layout_marginStart="@dimen/_6sdp"
+                            android:layout_marginStart="@dimen/_4sdp"
                             android:fontFamily="@font/cairo_bold"
+                            android:hint="@string/loading"
+                            android:paddingHorizontal="@dimen/_4sdp"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toEndOf="@id/ivIconLoc"
                             app:layout_constraintTop_toTopOf="parent" />
 
-                        <TextView
-                            android:id="@+id/tvIconLoc2"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:layout_marginEnd="@dimen/_8sdp"
-                            android:fontFamily="@font/cairo_bold"
-                            android:text=" km"
-                            android:textColor="@color/primary"
-                            android:visibility="gone"
-                            app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tvIconLoc"
-                            app:layout_constraintTop_toTopOf="parent" />
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="@dimen/_100sdp"
+                    android:layout_width="wrap_content"
                     android:layout_height="@dimen/_40sdp"
-                    app:cardBackgroundColor="#4D6750A4"
                     android:layout_marginHorizontal="@dimen/_16sdp"
+                    app:cardBackgroundColor="#4D6750A4"
                     app:cardCornerRadius="@dimen/_16sdp"
                     app:cardElevation="0dp"
                     app:strokeWidth="0dp">
@@ -124,25 +113,15 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
                             android:layout_marginStart="@dimen/_4sdp"
-                            android:hint="@string/loading"
                             android:fontFamily="@font/cairo_bold"
+                            android:hint="@string/loading"
+
+                            android:paddingHorizontal="@dimen/_4sdp"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toEndOf="@id/ivIconTime"
                             app:layout_constraintTop_toTopOf="parent" />
 
-                        <TextView
-                            android:id="@+id/tvIconTime2"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:layout_marginEnd="@dimen/_8sdp"
-                            android:fontFamily="@font/cairo_bold"
-                            android:text=" min"
-                            android:textColor="@color/primary"
-                            android:visibility="gone"
-                            app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tvIconTime"
-                            app:layout_constraintTop_toTopOf="parent" />
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 

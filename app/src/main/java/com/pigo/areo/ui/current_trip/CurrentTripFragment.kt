@@ -23,6 +23,7 @@ class CurrentTripFragment : Fragment() {
     private val sharedViewModel: SharedViewModel by activityViewModels {
         SharedViewModelFactory(requireContext().applicationContext)
     }
+
     private val currentTipViewModel: CreateTripViewModel by viewModels()
 
     private lateinit var gMap: GoogleMap
@@ -92,12 +93,6 @@ class CurrentTripFragment : Fragment() {
         sharedViewModel.setupGeoQuery()
     }
 
-    override fun onPause() {
-        super.onPause()
-        sharedViewModel.removeGeoQuery("pilot_location")
-        sharedViewModel.removeGeoQuery("airport_location")
-        sharedViewModel.removeGeoQuery("driver_location")
-    }
 
     private fun formatDuration(seconds: Int): String {
         val minutes = seconds / 60

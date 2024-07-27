@@ -14,4 +14,6 @@
     <color name="on_error">#FFFFFF</color>
     <color name="start_trip">#6750a4</color>
     <color name="stop_trip">#B71C1C</color>
+    <color name="ic_color">#996DFF</color>
+
 </resources>

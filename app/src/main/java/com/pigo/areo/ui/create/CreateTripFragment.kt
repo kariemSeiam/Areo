@@ -46,7 +46,6 @@ class CreateTripFragment : Fragment() {
             CreateTripViewModelFactory(sharedViewModel, binding.root.context.applicationContext)
         )[CreateTripViewModel::class.java]
 
-
         binding.viewModel = createTripViewModel
 
         setupClickListeners()
@@ -60,12 +59,18 @@ class CreateTripFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         showDriverLayout()
+        binding.airportLocationSearchResultsRecyclerView.visibility =
+            if (binding.airportLocationEditText.isEnabled) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
+
         airportLocation?.let {
             createTripViewModel.reverseGeocodeLocation(it) { res ->
                 createTripViewModel._airportLocation.postValue(res.data.subAddress)
             }
         }
-
     }
 
     private fun setUpObservers() {
@@ -79,7 +84,7 @@ class CreateTripFragment : Fragment() {
                 }
             )
             // Enable or disable EditText and RecyclerView based on the user role and trip state
-            updateEditTextState(user, createTripViewModel.isTripRunning.value ?: false)
+            updateViewVisibility(user, createTripViewModel.isTripRunning.value ?: false)
         }
 
         createTripViewModel.isTripRunning.observe(viewLifecycleOwner) { isRunning ->
@@ -93,7 +98,7 @@ class CreateTripFragment : Fragment() {
             }
             // Enable or disable EditText and RecyclerView based on the user role and trip state
             val userRole = sharedViewModel.userRole.value ?: SharedViewModel.UserRole.DRIVER
-            updateEditTextState(userRole, isRunning)
+            updateViewVisibility(userRole, isRunning)
         }
 
         sharedViewModel.cameraPosition.observe(viewLifecycleOwner) { latLng ->
@@ -114,8 +119,6 @@ class CreateTripFragment : Fragment() {
 
         createTripViewModel.airportSearchResults.observe(viewLifecycleOwner) { results ->
             airportLocationAdapter.setItems(results)
-            binding.airportLocationSearchResultsRecyclerView.visibility =
-                if (results.isEmpty()) View.GONE else View.VISIBLE
         }
 
         createTripViewModel.selectPilotLocationEvent.observe(viewLifecycleOwner) {
@@ -127,30 +130,27 @@ class CreateTripFragment : Fragment() {
         }
     }
 
-
     private fun setEditTextEnabled(enabled: Boolean) {
         binding.airportLocationEditText.isEnabled = enabled
         // You can add more EditText fields here if needed
     }
 
-    private fun updateEditTextState(userRole: SharedViewModel.UserRole, isTripRunning: Boolean) {
-        val isEnabled = !isTripRunning && userRole == SharedViewModel.UserRole.DRIVER
+    private fun updateViewVisibility(userRole: SharedViewModel.UserRole, isTripRunning: Boolean) {
+        val isDriverAndNotRunning = userRole == SharedViewModel.UserRole.DRIVER && !isTripRunning
 
         // Update EditText enabled state
-        setEditTextEnabled(isEnabled)
+        setEditTextEnabled(isDriverAndNotRunning)
 
         // Update RecyclerView visibility based on the conditions
         binding.airportLocationSearchResultsRecyclerView.visibility =
-            if (isEnabled && createTripViewModel.airportSearchResults.value?.isNotEmpty() == true) {
+            if (isDriverAndNotRunning && createTripViewModel.airportSearchResults.value?.isNotEmpty() == true) {
                 View.VISIBLE
             } else {
                 View.GONE
             }
     }
 
-
     private fun setupClickListeners() {
-
         binding.startTripButton.setOnClickListener { createTripViewModel.toggleTripState() }
 
         binding.buttonConfirmAddress.setOnClickListener {
@@ -162,7 +162,6 @@ class CreateTripFragment : Fragment() {
                 }
             }
         }
-
     }
 
     private fun setupRecyclerView() {

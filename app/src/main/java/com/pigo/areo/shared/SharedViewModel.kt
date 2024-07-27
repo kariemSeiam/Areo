@@ -6,7 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.drawable.Drawable
+import android.location.Location
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
@@ -39,8 +39,8 @@ import com.pigo.areo.R
 import com.pigo.areo.geolink.GeolinkApiService
 import com.pigo.areo.geolink.models.DirectionResponse
 import com.pigo.areo.geolink.models.Route
-import com.pigo.areo.geolink.models.RouteCache
 import com.pigo.areo.geolink.models.findShortestPath
+import com.pigo.areo.ui.current_trip.CustomLatLng
 import com.pigo.areo.ui.current_trip.Trip
 import com.pigo.areo.utils.CompassManager
 import com.pigo.areo.utils.SharedPreferencesUtil
@@ -59,8 +59,7 @@ import kotlin.math.sin
 
 class SharedViewModel(context: Context) : ViewModel() {
 
-    private var appContext: Context = context.applicationContext
-
+    private val appContext: Context = context.applicationContext
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
 
@@ -69,6 +68,9 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     private val _currentTrip = MutableLiveData<Trip?>()
     val currentTrip: LiveData<Trip?> = _currentTrip
+
+    val _selectingState = MutableLiveData<Boolean>().apply { value = false }
+    val selectingState: LiveData<Boolean> get() = _selectingState
 
     private val _googleMap = MutableLiveData<GoogleMap>()
     val googleMap: LiveData<GoogleMap> = _googleMap
@@ -82,43 +84,40 @@ class SharedViewModel(context: Context) : ViewModel() {
     private val _routeResponse = MutableLiveData<Route?>()
     val routeResponse: LiveData<Route?> = _routeResponse
 
+    private val _secRouteResponse = MutableLiveData<Route?>()
+    val secRouteResponse: LiveData<Route?> = _secRouteResponse
+
     private var initialCameraMove = true
     private lateinit var geoFire: GeoFire
     private val geoQueries = mutableMapOf<String, GeoQuery>()
 
     private var currentPolyline: Polyline? = null
     private var secondPolyline: Polyline? = null
-
     private var currentMarker: Marker? = null
     private var driverMarker: Marker? = null
     private var airportMarker: Marker? = null
 
-    private var routeCache: RouteCache? = null
     private var autoMoveEnabled = true
-
 
     private val databaseReference: DatabaseReference =
         FirebaseDatabase.getInstance().getReference("locations")
-
     private val tripDatabaseReference: DatabaseReference =
         FirebaseDatabase.getInstance().getReference("trips")
 
 
-    private val defaultLatLng = LatLng(0.0, 0.0) // Default LatLng if no data available
+    val tripHistory = MutableLiveData<List<Trip>>()
 
+
+    private val defaultLatLng = LatLng(0.0, 0.0)
     private val apiService = GeolinkApiService()
 
-    // Added local variables for pilot and driver LatLng
     var pilotLatLng: LatLng? = null
     var driverLatLng: LatLng? = null
     var airportLatLng: LatLng? = null
 
-    // Add an instance of CompassManager
     private val compassManager: CompassManager
-
     private val _bearing = MutableLiveData<Float>()
     val bearing: LiveData<Float> = _bearing
-
 
     init {
         initializeGeoFire()
@@ -126,8 +125,8 @@ class SharedViewModel(context: Context) : ViewModel() {
         loadLastFetchedLatLng()
         loadLastSavedTrip()
         setupGeoQuery()
-        compassManager = object : CompassManager(appContext) {}
-        // Start receiving compass updates
+        fetchTripHistory()
+        compassManager = CompassManager(appContext)
         startCompass()
     }
 
@@ -136,28 +135,21 @@ class SharedViewModel(context: Context) : ViewModel() {
         stopCompass()
     }
 
-    // Start compass updates
     private fun startCompass() {
         viewModelScope.launch {
             compassManager.startCompassUpdates().collect { bearing ->
                 _bearing.value = bearing
-                // Handle the bearing update, e.g., update the UI or map orientation
-
             }
         }
     }
 
-    // Stop compass updates
     fun stopCompass() {
         compassManager.stop()
     }
 
     private fun setupCameraMoveListener() {
-        googleMap.value?.let { gMap ->
-            gMap.setOnCameraMoveListener {
-                val currentCameraPosition = gMap.cameraPosition.target
-                _cameraPosition.value = currentCameraPosition
-            }
+        googleMap.value?.setOnCameraMoveListener {
+            _cameraPosition.value = googleMap.value?.cameraPosition?.target
         }
     }
 
@@ -192,29 +184,29 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
-
     private fun loadLastSavedTrip() {
-        val trip = SharedPreferencesUtil.getTrip(appContext)
-        _currentTrip.value = trip
+        _currentTrip.value = null
+        _currentTrip.value = SharedPreferencesUtil.getTrip(appContext)
     }
 
     fun startTrip() {
         val tripId = UUID.randomUUID().toString()
-        val startTime = System.currentTimeMillis()
-        val trip = Trip(tripId, startTime, null, emptyList(), emptyList(), startTrip = true)
+        val trip = Trip(
+            tripId, System.currentTimeMillis(), null, emptyList(), emptyList(), startTrip = true
+        )
         _currentTrip.value = trip
         SharedPreferencesUtil.saveTrip(appContext, trip)
         saveTripToFirebase(trip)
     }
 
     fun stopTrip() {
-        val trip = _currentTrip.value ?: return
-        val endTime = System.currentTimeMillis()
-        val updatedTrip = trip.copy(endTime = endTime)
-        _currentTrip.value = updatedTrip
-        saveTripToFirebase(updatedTrip)
-        _currentTrip.value = null
-        SharedPreferencesUtil.clearTrip(appContext)
+        _currentTrip.value?.let { trip ->
+            val updatedTrip = trip.copy(endTime = System.currentTimeMillis())
+            _currentTrip.value = updatedTrip
+            saveTripToFirebase(updatedTrip)
+            _currentTrip.value = null
+            SharedPreferencesUtil.clearTrip(appContext)
+        }
     }
 
     private fun saveTripToFirebase(trip: Trip) {
@@ -227,28 +219,120 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private val _lastTempLocation = MutableLiveData<CustomLatLng?>()
+    val lastTempLocation: LiveData<CustomLatLng?> get() = _lastTempLocation
+
+
     fun addTripLocation(latLng: LatLng, speed: Float) {
-        val trip = _currentTrip.value ?: return
-        val updatedCoordinates = trip.coordinates.toMutableList().apply { add(latLng) }
-        val updatedSpeeds = trip.speeds.toMutableList().apply { add(speed) }
-        val updatedTrip = trip.copy(coordinates = updatedCoordinates, speeds = updatedSpeeds)
-        _currentTrip.value = updatedTrip
-        SharedPreferencesUtil.saveTrip(appContext, updatedTrip)
-        saveTripToFirebase(updatedTrip)
+        _currentTrip.value?.let { trip ->
+            val lastLocation = lastTempLocation.value
+
+            if (lastLocation == null || distanceBetween(lastLocation.toLatLng(), latLng) > 10.0) {
+                val updatedTrip = trip.copy(
+                    coordinates = trip.coordinates + CustomLatLng.fromLatLng(latLng),
+                    speeds = trip.speeds + speed
+                )
+                _currentTrip.value = updatedTrip
+
+                // Update the last location
+                _lastTempLocation.value = CustomLatLng.fromLatLng(latLng)
+
+                // Save the trip data
+                SharedPreferencesUtil.saveTrip(appContext, updatedTrip)
+                saveTripToFirebase(updatedTrip)
+            }
+        }
     }
 
-    fun getTripHistory(callback: (List<Trip>) -> Unit) {
+    private fun distanceBetween(start: LatLng, end: LatLng): Double {
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            start.latitude, start.longitude, end.latitude, end.longitude, results
+        )
+        return results[0].toDouble()
+    }
+
+
+    /*// Define a CoroutineExceptionHandler to handle exceptions
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        Log.e("CoroutineError", "Exception caught: ${exception.localizedMessage}")
+    }
+
+    // Define your suspend function to generate trips
+    suspend fun generateTripFromWaypoints() = supervisorScope {
+        // Define start and end LatLngs for the request
+        val startLatLng = LatLng(30.0444, 31.2357) // Example: Cairo
+        val endLatLng = LatLng(33.5128, 36.2765) // Example: Damascus
+
+        try {
+            // Switch to IO Dispatcher for network operation
+            val directionResponse = withContext(Dispatchers.IO) {
+                apiService.direction(
+                    startLatLng.latitude.toString(),
+                    startLatLng.longitude.toString(),
+                    endLatLng.latitude.toString(),
+                    endLatLng.longitude.toString()
+                ).firstOrNull()
+            }
+
+            // Process the response on the Main thread
+            directionResponse?.onSuccess { result ->
+                val bestRoute = findShortestPath(result.data)
+                bestRoute?.let { route ->
+                    val waypoints = route.waypoints.map { LatLng(it.lat, it.lng) }
+                    val fakeTrip = Trip(
+                        tripId = "trip1",
+                        startTime = System.currentTimeMillis() - 3600000, // 1 hour ago
+                        endTime = System.currentTimeMillis(),
+                        coordinates = waypoints,
+                        speeds = List(waypoints.size) { 50f + (it * 5) }, // Dummy speeds
+                        startTrip = true,
+                        arrivedAtPilot = false,
+                        arrivedAtAirport = false
+                    )
+
+                    // Save to SharedPreferences or Firebase on IO Dispatcher
+                    withContext(Dispatchers.IO) {
+                        SharedPreferencesUtil.saveTrip(appContext, fakeTrip)
+                        saveTripToFirebase(fakeTrip)
+                    }
+                }
+            } ?: run {
+                Log.e("GenerateTrip", "No direction response received")
+            }
+        } catch (e: Exception) {
+            Log.e("GenerateTrip", "Error generating trip: ${e.localizedMessage}")
+        }
+    }
+*/
+
+
+    fun fetchTripHistory() {
         viewModelScope.launch {
             try {
                 val tripsSnapshot = tripDatabaseReference.get().await()
                 val trips = tripsSnapshot.children.mapNotNull { it.getValue(Trip::class.java) }
-                callback(trips)
+                tripHistory.postValue(trips)
             } catch (e: Exception) {
                 Log.e("SharedViewModel", "Error fetching trip history", e)
-                callback(emptyList())
+                tripHistory.postValue(emptyList())
             }
         }
     }
+
+    /*
+        fun getTripHistory(callback: (List<Trip>) -> Unit) {
+            viewModelScope.launch {
+                try {
+                    val tripsSnapshot = tripDatabaseReference.get().await()
+                    val trips = tripsSnapshot.children.mapNotNull { it.getValue(Trip::class.java) }
+                    callback(trips)
+                } catch (e: Exception) {
+                    Log.e("SharedViewModel", "Error fetching trip history", e)
+                    callback(emptyList())
+                }
+            }
+        }*/
 
     fun deleteTrip(tripId: String, callback: (Boolean) -> Unit) {
         viewModelScope.launch {
@@ -264,7 +348,6 @@ class SharedViewModel(context: Context) : ViewModel() {
 
 
     fun updateAirportLocation(latLng: LatLng) {
-        Log.d("SharedViewModel", "Updating Airport LatLng: $latLng")
         airportLatLng = latLng
         updateLocation("airport_location", GeoLocation(latLng.latitude, latLng.longitude))
         createOrUpdateGeoQuery(
@@ -273,17 +356,14 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     fun updatePilotLatLng(latLng: LatLng) {
-        Log.d("SharedViewModel", "Updating pilot LatLng: $latLng")
         pilotLatLng = latLng
         updateLocation("pilot_location", GeoLocation(latLng.latitude, latLng.longitude))
         createOrUpdateGeoQuery(
             "pilot_location", GeoLocation(latLng.latitude, latLng.longitude), 0.1
         )
-
     }
 
     fun updateDriverLatLng(latLng: LatLng) {
-        Log.d("SharedViewModel", "Updating driver LatLng: $latLng")
         driverLatLng = latLng
         updateLocation("driver_location", GeoLocation(latLng.latitude, latLng.longitude))
         createOrUpdateGeoQuery(
@@ -292,201 +372,166 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     private fun initializeGeoFire() {
-        Log.d("SharedViewModel", "Initializing GeoFire")
         geoFire = GeoFire(databaseReference)
     }
 
     fun loadUserRole(): UserRole? {
-        Log.d("SharedViewModel", "Loading user role from SharedPreferences")
         val userRoleString = sharedPreferences.getString("user_role", null)
-        return if (userRoleString != null) {
-            val role = UserRole.valueOf(userRoleString)
-            _userRole.value = role
-            Log.d("SharedViewModel", "Loaded user role: ${_userRole.value}")
-            role
-        } else {
-            Log.d("SharedViewModel", "User role is null, performing custom action")
-            // Open Login
-            null
+        return userRoleString?.let {
+            UserRole.valueOf(it).also { role ->
+                _userRole.value = role
+            }
         }
     }
 
-    private fun updateDirectionResponse(routeResponse: Route) {
-        Log.d("SharedViewModel", "Updating route response: $routeResponse")
-        _routeResponse.value = routeResponse
+    private fun updateDirectionResponse(routeResponse: Route, isAirportRoute: Boolean) {
+
+        if (isAirportRoute) {
+            _secRouteResponse.value = routeResponse
+        } else {
+            _routeResponse.value = routeResponse
+        }
     }
 
     fun loginAs(role: UserRole) {
-        Log.d("SharedViewModel", "Logging in as: $role")
         _userRole.value = role
         sharedPreferences.edit().putString("user_role", role.name).apply()
     }
 
-
     fun switchUserRole() {
-        Log.d("SharedViewModel", "Switching user role")
         _userRole.value = when (_userRole.value) {
             UserRole.PILOT -> UserRole.DRIVER
             UserRole.DRIVER -> UserRole.PILOT
             else -> return
         }
-        Log.d("SharedViewModel", "New user role: ${_userRole.value}")
         sharedPreferences.edit().putString("user_role", _userRole.value?.name).apply()
     }
 
     fun setGoogleMap(map: GoogleMap) {
-        Log.d("SharedViewModel", "Setting GoogleMap instance")
         _googleMap.value = map
         setupCameraMoveListener()
     }
 
     fun updateCurrentLatLng(latLng: LatLng) {
-        Log.d("SharedViewModel", "Updating current LatLng: $latLng")
-        _currentLatLng.postValue(latLng)
-        saveLastFetchedLatLng(latLng)
-        if (userRole.value != null) {
-            when (userRole.value) {
-                UserRole.DRIVER -> {
-                    updateDriverLatLng(latLng)
-                }
+        _currentLatLng.postValue(latLng) // Updates the LiveData with the new LatLng
+        saveLastFetchedLatLng(latLng) // Saves the last fetched LatLng (assuming it's a persistent storage operation)
 
-                UserRole.PILOT -> {
-                    updatePilotLatLng(latLng)
-                }
-
-                null -> TODO()
-            }
+        // Depending on the user's role, update the corresponding location
+        when (userRole.value) {
+            UserRole.DRIVER -> updateDriverLatLng(latLng) // Updates driver's location
+            UserRole.PILOT -> updatePilotLatLng(latLng) // Updates pilot's location
+            else -> loginAs(UserRole.PILOT)
         }
-        if (initialCameraMove) updateCameraPosition()
+
+        // If it's the initial camera move, update the camera position
+        if (initialCameraMove) {
+            updateCameraPosition() // Updates the camera position based on the new LatLng
+        }
     }
 
-
-    // Function to calculate the nearest waypoint index
     private fun calculateNearestWaypointIndex(currentLatLng: LatLng, waypoints: List<LatLng>): Int {
-        var nearestIndex = 0
-        var minDistance = SphericalUtil.computeDistanceBetween(currentLatLng, waypoints[0])
-
-        for (i in 1 until waypoints.size) {
-            val distance = SphericalUtil.computeDistanceBetween(currentLatLng, waypoints[i])
-            if (distance < minDistance) {
-                minDistance = distance
-                nearestIndex = i
-            }
-        }
-
-        return nearestIndex
+        return waypoints.indices.minByOrNull {
+            SphericalUtil.computeDistanceBetween(currentLatLng, waypoints[it])
+        } ?: 0
     }
 
-    // Function to calculate bearing between two LatLng points
     private fun calculateBearing(from: LatLng, to: LatLng): Float {
         val startLat = Math.toRadians(from.latitude)
         val startLng = Math.toRadians(from.longitude)
         val endLat = Math.toRadians(to.latitude)
         val endLng = Math.toRadians(to.longitude)
-
         val deltaLng = endLng - startLng
-
         val y = sin(deltaLng) * cos(endLat)
         val x = cos(startLat) * sin(endLat) - sin(startLat) * cos(endLat) * cos(deltaLng)
 
-        var bearing = Math.toDegrees(atan2(y, x)).toFloat()
-        bearing = (bearing + 360) % 360 // Ensure the result is between 0 and 360
-        return bearing
+        return ((Math.toDegrees(atan2(y, x)) + 360) % 360).toFloat()
     }
 
-    // Function to update camera position based on user role and route direction
-    fun updateCameraPosition(
-        waypoints: List<LatLng>? = null, preZoom: Boolean = true
-    ) {
-        val currentLatLng = _currentLatLng.value
+    fun updateCameraPosition(preZoom: Boolean = true) {
+        val currentLatLng = _currentLatLng.value ?: return
         val userRole = _userRole.value
-        val map = googleMap.value
+        val firstRoute = waypoints.value
+        val secRoute = secWaypoints.value
 
-        if (map == null) {
-            Log.e("SharedViewModel", "GoogleMap instance is null")
-            return
-        }
+        val combinedRoute = mutableListOf<LatLng>()
+        firstRoute?.let { combinedRoute.addAll(it) }
+        secRoute?.let { combinedRoute.addAll(it) }
 
-        if (currentLatLng == null) {
-            Log.e("SharedViewModel", "Current LatLng is null")
+
+
+        if (selectingState.value == true) {
             return
         }
 
         if (!autoMoveEnabled) {
-            Log.d("SharedViewModel", "Auto-move is disabled")
+            moveCameraToPosition(currentLatLng)
             return
         }
 
         when (userRole) {
-            UserRole.DRIVER -> {
-                if (waypoints.isNullOrEmpty()) {
-                    moveCameraToPosition(currentLatLng)
-                    Log.e("SharedViewModel", "Waypoints list is empty")
-                    return
-                }
-
-                if (waypoints.size < 2) return
-
-                val closestIndex = calculateNearestWaypointIndex(currentLatLng, waypoints)
-                val nextIndex = (closestIndex + 1).coerceAtMost(waypoints.size - 1)
-                val routeBearingMatrix = calculateBearing(currentLatLng, waypoints[nextIndex])
-                val routeBearing = bearing.value
-
-                val cameraPosition = if (routeBearing != null) {
-                    CameraPosition.Builder().target(currentLatLng).zoom(19f).bearing(routeBearing)
-                        .build()
-                    //.tilt(60f) // Adjust tilt as needed for a street-level view
-
-                } else {
-                    CameraPosition.Builder().target(currentLatLng).zoom(19f)
-                        .bearing(routeBearingMatrix).build()
-                    //.tilt(60f) // Adjust tilt as needed for a street-level view
-
-                }
-
-                map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition),
-                    object : GoogleMap.CancelableCallback {
-                        override fun onFinish() {
-                            initialCameraMove = false
-                            updateCurrentMarkerAndAddMarkers(map)
-                        }
-
-                        override fun onCancel() {
-                            initialCameraMove = false
-                            updateCurrentMarkerAndAddMarkers(map)
-                        }
-                    })
-            }
-
-            UserRole.PILOT -> {
-                if (driverLatLng != null) {
-                    val bounds =
-                        LatLngBounds.Builder().include(currentLatLng).include(driverLatLng!!)
-                            .build()
-                    val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 8)
-                    map.animateCamera(cameraUpdate, object : GoogleMap.CancelableCallback {
-                        override fun onFinish() {
-                            val currentZoom = map.cameraPosition.zoom
-                            val newZoom = if (preZoom) currentZoom - 1f else currentZoom - 0.7f
-                            val zoomUpdate = CameraUpdateFactory.zoomTo(newZoom)
-                            map.animateCamera(zoomUpdate)
-                            initialCameraMove = false
-                            updateCurrentMarkerAndAddMarkers(map)
-                        }
-
-                        override fun onCancel() {
-                            initialCameraMove = false
-                            updateCurrentMarkerAndAddMarkers(map)
-                        }
-                    })
-                } else {
-                    Log.e("SharedViewModel", "Driver location is null")
-                }
-            }
-
+            UserRole.DRIVER -> handleDriverCameraUpdate(currentLatLng, combinedRoute)
+            UserRole.PILOT -> handlePilotCameraUpdate(preZoom)
             else -> {
-                Log.e("SharedViewModel", "Unknown user role")
+                moveCameraToPosition(currentLatLng)
+
             }
+        }
+    }
+
+    private fun handleDriverCameraUpdate(currentLatLng: LatLng, waypoints: List<LatLng>?) {
+        if (waypoints.isNullOrEmpty() || waypoints.size < 2) {
+            moveCameraToPosition(currentLatLng)
+            return
+        }
+
+        val closestIndex = calculateNearestWaypointIndex(currentLatLng, waypoints)
+        val nextIndex = (closestIndex + 1).coerceAtMost(waypoints.size - 1)
+        val routeBearing = bearing.value ?: calculateBearing(currentLatLng, waypoints[nextIndex])
+
+        val cameraPosition =
+            CameraPosition.Builder().target(currentLatLng).zoom(19f).bearing(routeBearing).build()
+
+        googleMap.value?.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition),
+            object : GoogleMap.CancelableCallback {
+                override fun onFinish() {
+                    initialCameraMove = false
+                    updateCurrentMarkerAndAddMarkers(googleMap.value!!)
+                }
+
+                override fun onCancel() {
+                    initialCameraMove = false
+                    updateCurrentMarkerAndAddMarkers(googleMap.value!!)
+                }
+            })
+    }
+
+    private fun handlePilotCameraUpdate(preZoom: Boolean) {
+        val currentLatLng = _currentLatLng.value ?: return
+        val map = googleMap.value ?: return
+
+        val boundsBuilder = LatLngBounds.Builder().include(currentLatLng)
+        airportLatLng?.let { boundsBuilder.include(it) }
+        driverLatLng?.let { boundsBuilder.include(it) }
+
+
+        val bounds = boundsBuilder.build()
+
+        map.setOnMapLoadedCallback {
+            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0),
+                object : GoogleMap.CancelableCallback {
+                    override fun onFinish() {
+                        val newZoom =
+                            if (preZoom) map.cameraPosition.zoom - 1f else map.cameraPosition.zoom - 0.7f
+                        map.animateCamera(CameraUpdateFactory.zoomTo(newZoom))
+                        initialCameraMove = false
+                        updateCurrentMarkerAndAddMarkers(map)
+                    }
+
+                    override fun onCancel() {
+                        initialCameraMove = false
+                        updateCurrentMarkerAndAddMarkers(map)
+                    }
+                })
         }
     }
 
@@ -496,135 +541,121 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     fun moveCameraToPosition(latLng: LatLng) {
         googleMap.value?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
-        toggleAutoMoveEnabled()
     }
 
-    private fun toggleAutoMoveEnabled() {
+    fun toggleAutoMoveEnabled(): Boolean {
         autoMoveEnabled = !autoMoveEnabled
         setAutoMoveEnabled(autoMoveEnabled)
+        return autoMoveEnabled
     }
 
-
-    // Function to check if a new request is needed based on time and distance
-    private fun isNewRequestNeeded(currentLatLng: LatLng): Boolean {
-        val now = System.currentTimeMillis()
-        routeCache?.let {
-            val timeElapsed = now - it.lastRequestTime
-            val distance = SphericalUtil.computeDistanceBetween(currentLatLng, it.lastLatLng)
-
-            Log.d("SharedViewModel", "Time elapsed since last request: $timeElapsed ms")
-            Log.d("SharedViewModel", "Distance from last request location: $distance meters")
-
-            // Check if more than 10 seconds have passed or distance > 100 meters
-            if (timeElapsed < 10000 || distance < 100) {
-                Log.d(
-                    "SharedViewModel",
-                    "New request not needed: Time elapsed < 60000 ms and distance < 100 meters"
-                )
-                return false
-            }
-        }
-
-        // Update the cache with the current time and location
-        routeCache = routeCache?.directionResponse?.let { RouteCache(now, currentLatLng, it) }
-        Log.d("SharedViewModel", "New request needed: Either no route cache or conditions met")
-        return true
-    }
-
-
-    // Function to update the cache with new data
-    private fun updateRouteCache(currentLatLng: LatLng, directionResponse: DirectionResponse) {
-        val now = System.currentTimeMillis()
-        routeCache = RouteCache(now, currentLatLng, directionResponse)
-    }
 
     fun updateCurrentMarkerAndAddMarkers(map: GoogleMap) {
-        val markerSize = 80 // Desired size of the marker icon
-
-        // Get bitmap descriptors for different roles and locations
+        val markerSize = 100
         val icCar = getBitmapDescriptorFromVector(R.drawable.ic_car_custom, markerSize, markerSize)
         val icPilot =
             getBitmapDescriptorFromVector(R.drawable.ic_pilot_custom, markerSize, markerSize)
         val icPlane = getBitmapDescriptorFromVector(R.drawable.ic_airport, markerSize, markerSize)
 
-        // Update current user's marker
         currentLatLng.value?.let { currentUserLatLng ->
             val icCurrent = when (_userRole.value) {
                 UserRole.PILOT -> icPilot
                 UserRole.DRIVER -> icCar
-                else -> return@let
+                else -> return
             }
             currentMarker?.remove()
             currentMarker = map.addMarker(
-                MarkerOptions().position(currentUserLatLng).icon(icCurrent)
-                    .anchor(0.5f, 0.5f) // Center the marker icon
+                MarkerOptions().position(currentUserLatLng).icon(icCurrent).anchor(0.5f, 0.5f)
             )
-        }
-
-        // Fetch and update airport location marker
-        fetchAirportLocation { airportLocationLatLng ->
-            airportLocationLatLng?.let {
-                airportLatLng = it
-                airportMarker?.remove()
-                airportMarker = map.addMarker(
-                    MarkerOptions().position(it).icon(icPlane)
-                        .anchor(0.5f, 0.5f) // Center the marker icon
-                )
-                // Update routes based on the user role
-                if (_userRole.value == UserRole.PILOT) {
-                    updateRoute(map, _currentLatLng.value!!, it, true) // Pilot to Airport
-                } else if (_userRole.value == UserRole.DRIVER) {
-                    pilotLatLng?.let { pilotLocation ->
-                        updateRoute(map, pilotLocation, it, false) // Driver to Pilot
-                    }
-
-                }
+            when (_userRole.value) {
+                UserRole.DRIVER -> driverLatLng = currentUserLatLng
+                UserRole.PILOT -> pilotLatLng = currentUserLatLng
+                else -> TODO()
             }
         }
 
-        // Fetch and update other user's location marker
-        fetchOtherUserLocation { otherUserLatLng ->
-            otherUserLatLng?.let {
-                val otherUserIconResId = when (_userRole.value) {
-                    UserRole.PILOT -> icCar
-                    UserRole.DRIVER -> icPilot
-                    else -> return@fetchOtherUserLocation
-                }
-                driverMarker?.remove()
-                driverMarker = map.addMarker(
-                    MarkerOptions().position(it).icon(otherUserIconResId)
-                        .anchor(0.5f, 0.5f) // Center the marker icon
+        fetchAirportLocation { airportLocationLatLng ->
+            airportLatLng = airportLocationLatLng
+            airportLatLng?.let {
+                airportMarker?.remove()
+                airportMarker = map.addMarker(
+                    MarkerOptions().position(it).icon(icPlane).anchor(0.5f, 0.5f)
                 )
-                // Update routes based on the user role
-                if (_userRole.value == UserRole.DRIVER) {
-                    updateRoute(map, _currentLatLng.value!!, it, false) // Driver to Other User
-                } else if (_userRole.value == UserRole.PILOT) {
-                    updateRoute(map, it, _currentLatLng.value!!, false) // Pilot to Other User
+            }
+
+            fetchOtherUserLocation { otherUserLatLng ->
+                otherUserLatLng?.let {
+                    val otherUserIconResId = when (_userRole.value) {
+                        UserRole.PILOT -> icCar
+                        UserRole.DRIVER -> icPilot
+                        else -> TODO()
+                    }
+                    when (_userRole.value) {
+                        UserRole.DRIVER -> pilotLatLng = otherUserLatLng
+                        UserRole.PILOT -> driverLatLng = otherUserLatLng
+                        else -> TODO()
+                    }
+                    driverMarker?.remove()
+                    driverMarker = map.addMarker(
+                        MarkerOptions().position(it).icon(otherUserIconResId).anchor(0.5f, 0.5f)
+                    )
+                    updateRoutesBasedOnRole(currentLatLng.value!!, it)
                 }
             }
         }
     }
 
-    // Function to update the route based on the locations
-    private fun updateRoute(
-        map: GoogleMap, startLatLng: LatLng, endLatLng: LatLng, isAirportRoute: Boolean
-    ) {
+    private fun updateRoutesBasedOnRole(currentLatLng: LatLng, otherUserLatLng: LatLng) {
+        when (_userRole.value) {
+            UserRole.DRIVER -> {
+                if (airportLatLng != null) {
+                    updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot
+                    updateRoute(otherUserLatLng, airportLatLng!!, true) // Pilot to Airport
+                } else {
+                    updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot only
+                }
+            }
+
+            UserRole.PILOT -> {
+                if (airportLatLng != null) {
+                    updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot
+                    updateRoute(currentLatLng, airportLatLng!!, true) // Pilot to Airport
+                } else {
+                    updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot only
+                }
+            }
+
+            else -> TODO()
+        }
+    }
+
+    private fun updateRoute(startLatLng: LatLng, endLatLng: LatLng, isAirportRoute: Boolean) {
+        val cachedRoute = getCachedRoute(startLatLng, endLatLng)
+        if (cachedRoute != null) {
+            // Use the cached route
+            updateWaypoints(startLatLng, endLatLng, cachedRoute, isAirportRoute)
+            return
+        }
+
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val directionFlow = apiService.direction(
+                val directionResponse = apiService.direction(
                     startLatLng.latitude.toString(),
                     startLatLng.longitude.toString(),
                     endLatLng.latitude.toString(),
                     endLatLng.longitude.toString()
-                )
+                ).firstOrNull()
 
-                val directionResult = directionFlow.firstOrNull()
-                directionResult?.let { result ->
-                    result.onSuccess { directionResponse ->
-                        fetchAndDrawRoute(directionResponse, isAirportRoute)
-                    }.onFailure { exception ->
-                        Log.e("SharedViewModel", "Failed to get direction: ${exception.message}")
-                    }
+                directionResponse?.onSuccess { result ->
+                    val newWaypoints = parseRouteData(result, isAirportRoute)
+
+                    // Cache the route
+                    cacheRoute(startLatLng, endLatLng, newWaypoints)
+
+                    // Update waypoints
+                    updateWaypoints(startLatLng, endLatLng, newWaypoints, isAirportRoute)
+                }?.onFailure { exception ->
+                    Log.e("SharedViewModel", "Failed to get direction: ${exception.message}")
                 }
             } catch (e: Exception) {
                 Log.e("SharedViewModel", "Exception during direction API call: ${e.message}")
@@ -632,206 +663,161 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private var cachedRoutes = mutableMapOf<Pair<LatLng, LatLng>, List<LatLng>>()
 
-    fun setupGeoQuery() {
-        addGeoQueryEventListener("pilot_location", object : GeoQueryEventListener {
-            override fun onKeyEntered(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "GeoQuery", "Pilot location entered the query: key=$key, location=$location"
-                )
-            }
 
-            override fun onKeyExited(key: String?) {
-                Log.d("GeoQuery", "Pilot location exited the query: key=$key")
-            }
-
-            override fun onKeyMoved(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "GeoQuery",
-                    "Pilot location moved within the query: key=$key, location=$location"
-                )
-            }
-
-            override fun onGeoQueryReady() {
-                Log.d("GeoQuery", "Pilot location GeoQuery is ready")
-            }
-
-            override fun onGeoQueryError(error: DatabaseError?) {
-                Log.e(
-                    "GeoQuery",
-                    "Error with Pilot location GeoQuery: ${error?.message}",
-                    error?.toException()
-                )
-            }
-        })
-
-        addGeoQueryEventListener("airport_location", object : GeoQueryEventListener {
-            override fun onKeyEntered(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "GeoQuery", "Airport location entered the query: key=$key, location=$location"
-                )
-            }
-
-            override fun onKeyExited(key: String?) {
-                Log.d("GeoQuery", "Airport location exited the query: key=$key")
-            }
-
-            override fun onKeyMoved(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "GeoQuery",
-                    "Airport location moved within the query: key=$key, location=$location"
-                )
-            }
-
-            override fun onGeoQueryReady() {
-                Log.d("GeoQuery", "Airport location GeoQuery is ready")
-            }
-
-            override fun onGeoQueryError(error: DatabaseError?) {
-                Log.e(
-                    "GeoQuery",
-                    "Error with Airport location GeoQuery: ${error?.message}",
-                    error?.toException()
-                )
-            }
-        })
-
-        addGeoQueryEventListener("driver_location", object : GeoQueryEventListener {
-            override fun onKeyEntered(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "GeoQuery", "Driver location entered the query: key=$key, location=$location"
-                )
-            }
-
-            override fun onKeyExited(key: String?) {
-                Log.d("GeoQuery", "Driver location exited the query: key=$key")
-            }
-
-            override fun onKeyMoved(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "GeoQuery",
-                    "Driver location moved within the query: key=$key, location=$location"
-                )
-            }
-
-            override fun onGeoQueryReady() {
-                Log.d("GeoQuery", "Driver location GeoQuery is ready")
-            }
-
-            override fun onGeoQueryError(error: DatabaseError?) {
-                Log.e(
-                    "GeoQuery",
-                    "Error with Driver location GeoQuery: ${error?.message}",
-                    error?.toException()
-                )
-            }
-        })
+    private fun getCachedRoute(startLatLng: LatLng, endLatLng: LatLng): List<LatLng>? {
+        return cachedRoutes.entries.find { (key, _) ->
+            key.first.isWithinDistance(startLatLng) && key.second.isWithinDistance(endLatLng)
+        }?.value
     }
 
+    private fun cacheRoute(startLatLng: LatLng, endLatLng: LatLng, waypoints: List<LatLng>) {
+        cachedRoutes[Pair(startLatLng, endLatLng)] = waypoints
+    }
+
+    private fun LatLng.isWithinDistance(other: LatLng, distance: Double = 5.0): Boolean {
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            this.latitude, this.longitude, other.latitude, other.longitude, results
+        )
+        return results[0] <= distance
+    }
+
+    private fun updateWaypoints(
+        startLatLng: LatLng, endLatLng: LatLng, waypoints: List<LatLng>, isAirportRoute: Boolean
+    ) {
+        val currentWaypoints = mutableListOf(startLatLng).apply {
+            addAll(waypoints)
+            add(endLatLng)
+        }
+
+        if (isAirportRoute) {
+            _secWaypoints.value = currentWaypoints
+        } else {
+            _waypoints.value = currentWaypoints
+        }
+
+        combineAndDrawRoutes()
+    }
+
+    private fun combineAndDrawRoutes() {
+        val firstRoute = waypoints.value
+        val secRoute = secWaypoints.value
+
+        val combinedRoute = mutableListOf<LatLng>().apply {
+            firstRoute?.let { addAll(it) }
+            secRoute?.let { addAll(it) }
+        }
+
+        googleMap.value?.let {
+            drawRouteOnMap(it, combinedRoute)
+        }
+    }
+
+    private fun LatLng.distanceTo(other: LatLng): Double {
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            this.latitude, this.longitude, other.latitude, other.longitude, results
+        )
+        return results[0].toDouble()
+    }
 
     private val _waypoints = MutableLiveData<List<LatLng>>()
     val waypoints: LiveData<List<LatLng>> = _waypoints
 
+    private val _secWaypoints = MutableLiveData<List<LatLng>>()
+    val secWaypoints: LiveData<List<LatLng>> = _secWaypoints
 
-    private fun parseRouteData(directionResponse: DirectionResponse): List<LatLng> {
-        val waypoints = mutableListOf<LatLng>()
-
-        if (directionResponse.success) {
+    private fun parseRouteData(
+        directionResponse: DirectionResponse, isAirportRoute: Boolean
+    ): List<LatLng> {
+        return if (directionResponse.success) {
             findShortestPath(directionResponse.data)?.let { route ->
-                updateDirectionResponse(route)
-                route.waypoints.forEach { waypoint ->
-                    waypoints.add(LatLng(waypoint.lat, waypoint.lng))
-                }
-            }
-        }
-        _waypoints.value = waypoints
-        return waypoints
-    }
-
-    private fun fetchAndDrawRoute(
-        directionResponse: DirectionResponse, isSecondRoute: Boolean = false
-    ) {
-        viewModelScope.launch {
-            try {
-                val waypoints = parseRouteData(directionResponse)
-                googleMap.value?.let { map ->
-                    drawRouteOnMap(map, waypoints, isSecondRoute)
-                } ?: run {
-                    Log.e("SharedViewModel", "GoogleMap instance is null, cannot draw route")
-                }
-            } catch (e: Exception) {
-                Log.e("SharedViewModel", "Error fetching or drawing route", e)
-            }
+                updateDirectionResponse(route, isAirportRoute)
+                route.waypoints.map { LatLng(it.lat, it.lng) }
+            } ?: emptyList()
+        } else {
+            emptyList()
         }
     }
 
     private fun drawRouteOnMap(
-        googleMap: GoogleMap,
-        waypoints: List<LatLng>,
-        isSecondRoute: Boolean = false,
-        hexColor: String = "FF6750A4"
+        googleMap: GoogleMap, waypoints: List<LatLng>, hexColor: String = "FF6750A4"
     ) {
-        val color = Color.parseColor("#$hexColor")
+        val color = Color.parseColor("#FF6750A4")
         val adjustedColor =
             if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES) {
                 adjustColorForDarkMode(color)
             } else {
-                color
+                Color.parseColor("#FF6750A4")
             }
 
         if (waypoints.isNotEmpty()) {
-            if (isSecondRoute) {
-                // Clear the previous polyline if it exists
-                secondPolyline?.remove()
-                val polylineOptions =
-                    PolylineOptions().width(14f).addAll(waypoints).color(adjustedColor)
-                secondPolyline = googleMap.addPolyline(polylineOptions)
-                Log.d("SharedViewModel", "Polyline added to the map with color: $adjustedColor")
-            } else {
-                // Clear the previous polyline if it exists
-                currentPolyline?.remove()
-
-                val polylineOptions =
-                    PolylineOptions().width(14f).addAll(waypoints).color(adjustedColor)
-                currentPolyline = googleMap.addPolyline(polylineOptions)
-                Log.d("SharedViewModel", "Polyline added to the map with color: $adjustedColor")
-            }
-
+            val polylineOptions =
+                PolylineOptions().width(14f).addAll(waypoints).color(adjustedColor)
+            currentPolyline?.remove()
+            currentPolyline = googleMap.addPolyline(polylineOptions)
         } else {
             Log.e("SharedViewModel", "No points to add to the polyline")
         }
     }
 
     private fun adjustColorForDarkMode(color: Int): Int {
-        // Example adjustment: Darken the color by reducing brightness
         val factor = 0.5f
-        val r = (Color.red(color) * factor).toInt()
-        val g = (Color.green(color) * factor).toInt()
-        val b = (Color.blue(color) * factor).toInt()
-        return Color.rgb(r, g, b)
+        return Color.rgb(
+            (Color.red(color) * factor).toInt(),
+            (Color.green(color) * factor).toInt(),
+            (Color.blue(color) * factor).toInt()
+        )
     }
+
+    fun setupGeoQuery() {
+        listOf("pilot_location", "airport_location", "driver_location").forEach { id ->
+            addGeoQueryEventListener(id, object : GeoQueryEventListener {
+                override fun onKeyEntered(key: String?, location: GeoLocation?) {
+                    Log.d(
+                        "GeoQuery", "$id location entered the query: key=$key, location=$location"
+                    )
+                }
+
+                override fun onKeyExited(key: String?) {
+                    Log.d("GeoQuery", "$id location exited the query: key=$key")
+                }
+
+                override fun onKeyMoved(key: String?, location: GeoLocation?) {
+                    Log.d(
+                        "GeoQuery",
+                        "$id location moved within the query: key=$key, location=$location"
+                    )
+                }
+
+                override fun onGeoQueryReady() {
+                    Log.d("GeoQuery", "$id location GeoQuery is ready")
+                }
+
+                override fun onGeoQueryError(error: DatabaseError?) {
+                    Log.e(
+                        "GeoQuery",
+                        "Error with $id location GeoQuery: ${error?.message}",
+                        error?.toException()
+                    )
+                }
+            })
+        }
+    }
+
 
     private fun getBitmapDescriptorFromVector(
         vectorResId: Int, width: Int, height: Int
     ): BitmapDescriptor {
-        val backgroundCircleColor = Color.parseColor("#266750A4") // 10% transparency
-        val circleSize = ((width + height) / 2) + 40 // Adjust the circle size for padding
-
-        // Create a square bitmap to accommodate the circle and icon
-        val bitmap = Bitmap.createBitmap(circleSize, circleSize, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(width + 40, height + 40, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#266750A4") }
+        canvas.drawCircle((width + 40) / 2f, (height + 40) / 2f, (width + height) / 4f, paint)
 
-        // Draw the background circle
-        paint.color = backgroundCircleColor
-        val circleRadius = (circleSize / 2).toFloat()
-        canvas.drawCircle(circleRadius, circleRadius, circleRadius, paint)
-
-        // Draw the icon in the center of the circle
-        val vectorDrawable: Drawable? = ContextCompat.getDrawable(appContext, vectorResId)
-        vectorDrawable?.let { drawable ->
-            val inset = (circleSize - width) / 2
-            drawable.setBounds(inset, inset, inset + width, inset + height)
+        ContextCompat.getDrawable(appContext, vectorResId)?.let { drawable ->
+            drawable.setBounds(20, 20, width + 20, height + 20)
             drawable.draw(canvas)
         }
 
@@ -839,30 +825,21 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     private fun createOrUpdateGeoQuery(id: String, center: GeoLocation, radius: Double) {
-        Log.d(
-            "SharedViewModel",
-            "Creating or updating GeoQuery with ID: $id, center: $center, radius: $radius"
-        )
         val geoQuery = geoFire.queryAtLocation(center, radius)
         geoQueries[id]?.removeAllListeners()
         geoQueries[id] = geoQuery
-
     }
 
-
     fun addGeoQueryEventListener(id: String, listener: GeoQueryEventListener) {
-        Log.d("SharedViewModel", "Adding GeoQueryEventListener for ID: $id")
         geoQueries[id]?.addGeoQueryEventListener(listener)
     }
 
     fun removeGeoQuery(id: String) {
-        Log.d("SharedViewModel", "Removing GeoQuery for ID: $id")
         geoQueries[id]?.removeAllListeners()
         geoQueries.remove(id)
     }
 
     fun updateLocation(key: String, location: GeoLocation) {
-        Log.d("SharedViewModel", "Updating location for key: $key, location: $location")
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 geoFire.setLocationTask(key, location).await()
@@ -873,7 +850,6 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     fun removeLocation(key: String) {
-        Log.d("SharedViewModel", "Removing location for key: $key")
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 geoFire.removeLocationTask(key).await()
@@ -884,130 +860,69 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     fun addLocationChangeListener(key: String) {
-        Log.d("SharedViewModel", "Adding location change listener for key: $key")
         databaseReference.child(key).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 snapshot.getValue(GeoLocation::class.java)?.let { location ->
-                    Log.d("SharedViewModel", "Data change for key: $key, location: $location")
                     val latLng = LatLng(location.latitude, location.longitude)
-                    if (_userRole.value == UserRole.PILOT) {
-                        pilotLatLng = latLng
-                    } else if (_userRole.value == UserRole.DRIVER) {
-                        driverLatLng = latLng
-                    }
+                    if (_userRole.value == UserRole.PILOT) pilotLatLng = latLng
+                    else if (_userRole.value == UserRole.DRIVER) driverLatLng = latLng
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(
-                    "SharedViewModel", "Data change cancelled for key: $key", error.toException()
-                )
+                Log.e("SharedViewModel", "Data change cancelled for key: $key", error.toException())
             }
         })
     }
 
     fun queryLocationByKey(key: String, callback: (LatLng?) -> Unit) {
-        Log.d("SharedViewModel", "Querying location by key: $key")
         geoFire.getLocation(key, object : LocationCallback {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
-                Log.d("SharedViewModel", "Location result for key: $key, location: $location")
-                val latLng = location?.let { LatLng(it.latitude, it.longitude) }
-                if (_userRole.value == UserRole.PILOT) {
-                    driverLatLng = latLng
-                } else if (_userRole.value == UserRole.DRIVER) {
-                    pilotLatLng = latLng
-                }
-                callback(latLng)
+                callback(location?.let { LatLng(it.latitude, it.longitude) })
             }
 
             override fun onCancelled(databaseError: DatabaseError?) {
-                Log.e(
-                    "SharedViewModel", "Query cancelled for key: $key", databaseError?.toException()
-                )
                 callback(null)
             }
         })
     }
 
     private fun fetchOtherUserLocation(callback: (LatLng?) -> Unit) {
-        val key = when (_userRole.value) {
-            UserRole.PILOT -> "driver_location"
-            UserRole.DRIVER -> "pilot_location"
-            else -> return
-        }
-        Log.d("SharedViewModel", "Fetching other user location for key: $key")
-
+        val key = if (_userRole.value == UserRole.PILOT) "driver_location" else "pilot_location"
         geoFire.getLocation(key, object : LocationCallback {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "SharedViewModel",
-                    "Other user location result for key: $key, location: $location"
-                )
-                val latLng = location?.let { LatLng(it.latitude, it.longitude) }
-                if (_userRole.value == UserRole.PILOT) {
-                    driverLatLng = latLng
-                } else if (_userRole.value == UserRole.DRIVER) {
-                    pilotLatLng = latLng
-                }
-                callback(latLng)
-                if (location == null) {
-                    Log.e("SharedViewModel", "Other user location result is null for key: $key")
-                }
+                callback(location?.let { LatLng(it.latitude, it.longitude) })
             }
 
             override fun onCancelled(databaseError: DatabaseError?) {
-                Log.e(
-                    "SharedViewModel",
-                    "Error fetching other user location for key: $key",
-                    databaseError?.toException()
-                )
                 callback(null)
             }
         })
     }
 
     private fun fetchAirportLocation(callback: (LatLng?) -> Unit) {
-        val key = "airport_location"
-        Log.d("SharedViewModel", "Fetching airport location for key: $key")
-
-        geoFire.getLocation(key, object : LocationCallback {
+        geoFire.getLocation("airport_location", object : LocationCallback {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
-                Log.d(
-                    "SharedViewModel", "Airport location result for key: $key, location: $location"
-                )
-                val latLng = location?.let { LatLng(it.latitude, it.longitude) }
-                callback(latLng)
-                if (location == null) {
-                    Log.e("SharedViewModel", "Airport location result is null for key: $key")
-                }
+                callback(location?.let { LatLng(it.latitude, it.longitude) })
             }
 
             override fun onCancelled(databaseError: DatabaseError?) {
-                Log.e(
-                    "SharedViewModel",
-                    "Error fetching airport location for key: $key",
-                    databaseError?.toException()
-                )
                 callback(null)
             }
         })
     }
 
-
     private fun saveLastFetchedLatLng(latLng: LatLng) {
-        Log.d("SharedViewModel", "Saving last fetched LatLng: $latLng")
-        sharedPreferences.edit().putString("last_fetched_lat", latLng.latitude.toString()).apply()
-        sharedPreferences.edit().putString("last_fetched_lng", latLng.longitude.toString()).apply()
+        sharedPreferences.edit().putString("last_fetched_lat", latLng.latitude.toString())
+            .putString("last_fetched_lng", latLng.longitude.toString()).apply()
     }
 
     private fun loadLastFetchedLatLng() {
-        Log.d("SharedViewModel", "Loading last fetched LatLng from SharedPreferences")
         val lat = sharedPreferences.getString("last_fetched_lat", null)?.toDoubleOrNull()
             ?: defaultLatLng.latitude
         val lng = sharedPreferences.getString("last_fetched_lng", null)?.toDoubleOrNull()
             ?: defaultLatLng.longitude
         _currentLatLng.value = LatLng(lat, lng)
-        Log.d("SharedViewModel", "Loaded LatLng: ${_currentLatLng.value}")
     }
 
     enum class UserRole {

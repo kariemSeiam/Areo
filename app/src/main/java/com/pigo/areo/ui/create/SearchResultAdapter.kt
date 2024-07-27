@@ -32,7 +32,7 @@ class SearchResultAdapter(
         holder.bind(items[position], onItemClick, ::clearItems)
     }
 
-    override fun getItemCount(): Int = items.size
+    override fun getItemCount(): Int = minOf(items.size, 5)
 
     class SearchResultViewHolder(private val binding: ItemSearchResultBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: SearchResult, onItemClick: (SearchResult) -> Unit, clearItems: () -> Unit) {

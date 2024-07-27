@@ -1,16 +1,24 @@
 package com.pigo.areo
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
@@ -36,6 +44,10 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
+    companion object {
+        private const val PERMISSION_REQUEST_CODE = 123
+    }
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var gMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -44,18 +56,32 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         SharedViewModelFactory(applicationContext)
     }
 
-    private var cameraUpdateJob: Job? = null // Coroutine job for periodic camera update
+    // Force Stop and Restart Application
+    private fun forceStopAndRestartApp() {
+        // Finish the current Activity
+        finish()
+
+        // Restart the application
+        val packageManager = packageManager
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+
+        // Optional: Kill the current process (use with caution)
+        // android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    private var cameraUpdateJob: Job? = null
+
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true && permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            fetchLastKnownLocation()
-            startLocationUpdates()
-            startPeriodicCameraUpdate()
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true && permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true && permissions[Manifest.permission.WAKE_LOCK] == true) {
+            checkBatteryOptimization()
         } else {
-            // Handle permission denied scenario
-            Log.e("PermissionError", "Location permissions were denied.")
+            Log.e("PermissionError", "Location or wake lock permissions denied.")
+            // Handle permission denial (e.g., show a message to the user)
         }
     }
 
@@ -71,65 +97,78 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
         requestLocationPermissions()
     }
 
-    private fun requestLocationPermissions() {
-        when {
-            ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                fetchLastKnownLocation()
-                startLocationUpdates()
-                startPeriodicCameraUpdate()
-            }
+    private fun setupNavigation() {
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(binding.navHostFragmentContentMain.id) as NavHostFragment
+        val navController = navHostFragment.navController
 
-            else -> {
-                requestPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
-            }
+        appBarConfiguration = AppBarConfiguration(
+            setOf(
+                R.id.tripDetailsFragment, R.id.createTripFragment, R.id.currentTripFragment
+            )
+        )
+        binding.bottomNavigation.setupWithNavController(navController)
+    }
+
+    private fun requestLocationPermissions() {
+        val permissionsToRequest = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.WAKE_LOCK
+        )
+
+        if (permissionsToRequest.all {
+                ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+            }) {
+            // All permissions granted, check for battery optimization
+            checkBatteryOptimization()
+        } else {
+            requestPermissionLauncher.launch(permissionsToRequest)
         }
+    }
+
+    private fun checkBatteryOptimization() {
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            requestDisableBatteryOptimization()
+        } else {
+            // Battery optimization is disabled, now check for GPS
+            checkGpsAndStartService()
+        }
+    }
+
+    private fun checkGpsAndStartService() {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            // GPS is enabled, start location service
+            startLocationService()
+        } else {
+            // GPS is not enabled, prompt user to enable it
+            openLocationSettings()
+        }
+    }
+
+
+    private fun startLocationService() {
+
+        // Start location updates after starting the service
+        fetchLastKnownLocation()
+        startPeriodicCameraUpdate()
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun requestDisableBatteryOptimization() {
+        val intent = Intent().apply {
+            action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+            data = Uri.parse("package:$packageName")
+        }
+        startActivity(intent)
     }
 
     private fun fetchLastKnownLocation() {
-        if (ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (location != null) {
-                    updateLocationOnMap(location)
-                } else {
-                    Log.w("LocationWarning", "Last known location is null.")
-                    if (ActivityCompat.checkSelfPermission(
-                            this, Manifest.permission.ACCESS_FINE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                            this, Manifest.permission.ACCESS_COARSE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
-                        // Open location settings if permission is granted and location data is null
-                        openLocationSettings()
-                    }
-                }
-            }.addOnFailureListener { exception ->
-                Log.e("LocationError", "Failed to get last known location: ${exception.message}")
-            }
-        } else {
-            Log.e("PermissionError", "Location permissions are not granted.")
-        }
-    }
-
-    private fun startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(
                 this, Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
@@ -150,14 +189,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 locationResult.lastLocation?.let { location ->
                     updateLocationOnMap(location)
                     sharedViewModel.addTripLocation(
-                        LatLng(location.latitude, location.longitude), location.speed
+                        LatLng(location.latitude, location.longitude)
                     )
+
                 }
             }
         }, null)
+
+        val intent = Intent(this, LocationService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, intent)
+        } else {
+            startService(intent)
+        }
     }
 
-    private var isFirstUpdate = true
+
+    private fun startPeriodicCameraUpdate() {
+        cameraUpdateJob = lifecycleScope.launch {
+            while (isActive) {
+                val userRole = sharedViewModel.userRole.value
+                sharedViewModel.updateCameraPosition()
+                delay(if (userRole == SharedViewModel.UserRole.DRIVER) 1500 else 5000)
+            }
+        }
+    }
 
     private fun updateLocationOnMap(location: Location) {
         val currentLatLng = LatLng(location.latitude, location.longitude)
@@ -168,11 +224,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             sharedViewModel.updateCurrentMarkerAndAddMarkers(gMap)
             Log.d("LocationUpdate", "Updated current marker and added markers")
         }
+        animateCameraToLocation(currentLatLng)
 
-        if (::gMap.isInitialized && isFirstUpdate) {
-            animateCameraToLocation(currentLatLng)
-            isFirstUpdate = false
-        }
     }
 
     private fun animateCameraToLocation(latLng: LatLng) {
@@ -181,29 +234,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         Log.d("LocationUpdate", "Animated camera to new location: $latLng")
     }
 
-    private fun setupNavigation() {
-        val navHostFragment =
-            supportFragmentManager.findFragmentById(binding.navHostFragmentContentMain.id) as NavHostFragment
-        val navController = navHostFragment.navController
-
-        appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.tripDetailsFragment, R.id.createTripFragment, R.id.currentTripFragment
-            )
-        )
-        binding.bottomNavigation.setupWithNavController(navController)
-    }
-
-    private fun startPeriodicCameraUpdate() {
-        cameraUpdateJob?.cancel()
-        cameraUpdateJob = lifecycleScope.launch {
-            while (isActive) {
-                val userRole = sharedViewModel.userRole.value
-                sharedViewModel.updateCameraPosition()
-                delay(if (userRole == SharedViewModel.UserRole.DRIVER) 1500 else 5000)
-            }
-        }
-    }
 
     override fun onMapReady(googleMap: GoogleMap) {
         sharedViewModel.setGoogleMap(googleMap)
@@ -227,6 +257,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val style = MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style)
         gMap.setMapStyle(style)
     }
+
 
     private fun openLocationSettings() {
         val intent = Intent().apply {

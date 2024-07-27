@@ -87,6 +87,9 @@ class SharedViewModel(context: Context) : ViewModel() {
     private val _secRouteResponse = MutableLiveData<Route?>()
     val secRouteResponse: LiveData<Route?> = _secRouteResponse
 
+    private val _lastTempLocation = MutableLiveData<CustomLatLng?>()
+    val lastTempLocation: LiveData<CustomLatLng?> get() = _lastTempLocation
+
     private var initialCameraMove = true
     private lateinit var geoFire: GeoFire
     private val geoQueries = mutableMapOf<String, GeoQuery>()
@@ -96,6 +99,9 @@ class SharedViewModel(context: Context) : ViewModel() {
     private var currentMarker: Marker? = null
     private var driverMarker: Marker? = null
     private var airportMarker: Marker? = null
+
+    private val _tempRoute = MutableLiveData<Boolean?>()
+    val tempRoute: LiveData<Boolean?> get() = _tempRoute
 
     private var autoMoveEnabled = true
 
@@ -219,18 +225,14 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
-    private val _lastTempLocation = MutableLiveData<CustomLatLng?>()
-    val lastTempLocation: LiveData<CustomLatLng?> get() = _lastTempLocation
 
-
-    fun addTripLocation(latLng: LatLng, speed: Float) {
+    fun addTripLocation(latLng: LatLng) {
         _currentTrip.value?.let { trip ->
             val lastLocation = lastTempLocation.value
 
-            if (lastLocation == null || distanceBetween(lastLocation.toLatLng(), latLng) > 10.0) {
+            if (lastLocation == null || distanceBetween(lastLocation.toLatLng(), latLng) > 3.0) {
                 val updatedTrip = trip.copy(
-                    coordinates = trip.coordinates + CustomLatLng.fromLatLng(latLng),
-                    speeds = trip.speeds + speed
+                    coordinates = trip.coordinates + CustomLatLng.fromLatLng(latLng)
                 )
                 _currentTrip.value = updatedTrip
 
@@ -395,8 +397,12 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     fun loginAs(role: UserRole) {
         _userRole.value = role
+        sharedPreferences.edit().clear().apply()
         sharedPreferences.edit().putString("user_role", role.name).apply()
     }
+
+
+
 
     fun switchUserRole() {
         _userRole.value = when (_userRole.value) {
@@ -415,6 +421,7 @@ class SharedViewModel(context: Context) : ViewModel() {
     fun updateCurrentLatLng(latLng: LatLng) {
         _currentLatLng.postValue(latLng) // Updates the LiveData with the new LatLng
         saveLastFetchedLatLng(latLng) // Saves the last fetched LatLng (assuming it's a persistent storage operation)
+        loadUserRole()
 
         // Depending on the user's role, update the corresponding location
         when (userRole.value) {
@@ -585,31 +592,63 @@ class SharedViewModel(context: Context) : ViewModel() {
 
             fetchOtherUserLocation { otherUserLatLng ->
                 otherUserLatLng?.let {
+                    // Calculate the distance between the two LatLng points
+                    val distance = FloatArray(1)
+                    Location.distanceBetween(
+                        currentLatLng.value!!.latitude,
+                        currentLatLng.value!!.longitude,
+                        it.latitude,
+                        it.longitude,
+                        distance
+                    )
+                    Log.e("TestSSSS", distance[0].toString())
                     val otherUserIconResId = when (_userRole.value) {
                         UserRole.PILOT -> icCar
                         UserRole.DRIVER -> icPilot
                         else -> TODO()
                     }
+
                     when (_userRole.value) {
-                        UserRole.DRIVER -> pilotLatLng = otherUserLatLng
-                        UserRole.PILOT -> driverLatLng = otherUserLatLng
+                        UserRole.DRIVER -> {
+                            pilotLatLng = otherUserLatLng
+                        }
+
+                        UserRole.PILOT -> {
+                            driverLatLng = otherUserLatLng
+                        }
+
                         else -> TODO()
                     }
-                    driverMarker?.remove()
-                    driverMarker = map.addMarker(
-                        MarkerOptions().position(it).icon(otherUserIconResId).anchor(0.5f, 0.5f)
-                    )
+
+
+                    // If the distance is greater than 10 meters, show the marker
+                    if (distance[0] > 25) {
+                        _tempRoute.postValue(false)
+                        driverMarker?.remove()
+                        driverMarker = map.addMarker(
+                            MarkerOptions().position(it).icon(otherUserIconResId).anchor(0.5f, 0.5f)
+                        )
+
+                    } else {
+                        _tempRoute.postValue(true)
+                        // If the distance is 10 meters or less, remove the marker
+                        driverMarker?.remove()
+                    }
                     updateRoutesBasedOnRole(currentLatLng.value!!, it)
+
                 }
             }
         }
     }
 
     private fun updateRoutesBasedOnRole(currentLatLng: LatLng, otherUserLatLng: LatLng) {
+        val tempBool = (tempRoute.value == true)
         when (_userRole.value) {
             UserRole.DRIVER -> {
                 if (airportLatLng != null) {
-                    updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot
+                    if (!tempBool) {
+                        updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot
+                    }
                     updateRoute(otherUserLatLng, airportLatLng!!, true) // Pilot to Airport
                 } else {
                     updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot only
@@ -618,10 +657,13 @@ class SharedViewModel(context: Context) : ViewModel() {
 
             UserRole.PILOT -> {
                 if (airportLatLng != null) {
-                    updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot
+                    if (!tempBool) {
+                        updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot
+                    }
                     updateRoute(currentLatLng, airportLatLng!!, true) // Pilot to Airport
                 } else {
                     updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot only
+
                 }
             }
 
@@ -665,7 +707,6 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     private var cachedRoutes = mutableMapOf<Pair<LatLng, LatLng>, List<LatLng>>()
 
-
     private fun getCachedRoute(startLatLng: LatLng, endLatLng: LatLng): List<LatLng>? {
         return cachedRoutes.entries.find { (key, _) ->
             key.first.isWithinDistance(startLatLng) && key.second.isWithinDistance(endLatLng)
@@ -676,7 +717,7 @@ class SharedViewModel(context: Context) : ViewModel() {
         cachedRoutes[Pair(startLatLng, endLatLng)] = waypoints
     }
 
-    private fun LatLng.isWithinDistance(other: LatLng, distance: Double = 5.0): Boolean {
+    private fun LatLng.isWithinDistance(other: LatLng, distance: Double = 2.0): Boolean {
         val results = FloatArray(1)
         Location.distanceBetween(
             this.latitude, this.longitude, other.latitude, other.longitude, results
@@ -713,14 +754,6 @@ class SharedViewModel(context: Context) : ViewModel() {
         googleMap.value?.let {
             drawRouteOnMap(it, combinedRoute)
         }
-    }
-
-    private fun LatLng.distanceTo(other: LatLng): Double {
-        val results = FloatArray(1)
-        Location.distanceBetween(
-            this.latitude, this.longitude, other.latitude, other.longitude, results
-        )
-        return results[0].toDouble()
     }
 
     private val _waypoints = MutableLiveData<List<LatLng>>()
@@ -772,6 +805,7 @@ class SharedViewModel(context: Context) : ViewModel() {
         )
     }
 
+
     fun setupGeoQuery() {
         listOf("pilot_location", "airport_location", "driver_location").forEach { id ->
             addGeoQueryEventListener(id, object : GeoQueryEventListener {
@@ -779,10 +813,28 @@ class SharedViewModel(context: Context) : ViewModel() {
                     Log.d(
                         "GeoQuery", "$id location entered the query: key=$key, location=$location"
                     )
+                    when (id) {
+                        "driver_location" -> {
+                            if (key == "airport_location") {
+                                stopTrip()
+                            }
+                            if (key == "pilot_location") hidePilotMarker(true)
+                        }
+
+                        else -> {}
+                    }
                 }
 
                 override fun onKeyExited(key: String?) {
                     Log.d("GeoQuery", "$id location exited the query: key=$key")
+                    when (id) {
+                        "driver_location" -> {
+                            if (key == "airport_location") stopTrip()
+                            if (key == "pilot_location") hidePilotMarker(false)
+                        }
+
+                        else -> {}
+                    }
                 }
 
                 override fun onKeyMoved(key: String?, location: GeoLocation?) {
@@ -805,6 +857,11 @@ class SharedViewModel(context: Context) : ViewModel() {
                 }
             })
         }
+    }
+
+    private fun hidePilotMarker(hide: Boolean = false) {
+        if (hide) currentMarker?.remove()
+
     }
 
 

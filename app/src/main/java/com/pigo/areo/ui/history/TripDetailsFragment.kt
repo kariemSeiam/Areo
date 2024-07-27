@@ -9,12 +9,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.gms.maps.model.LatLng
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.pigo.areo.R
 import com.pigo.areo.databinding.FragmentTripDetailsBinding
 import com.pigo.areo.shared.SharedViewModel
 import com.pigo.areo.shared.SharedViewModelFactory
-import com.pigo.areo.ui.current_trip.Trip
 
 class TripDetailsFragment : Fragment() {
 
@@ -31,47 +30,34 @@ class TripDetailsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Initialize sharedViewModel with custom factory
+
         sharedViewModel = ViewModelProvider(
             requireActivity(), SharedViewModelFactory(requireContext().applicationContext)
         )[SharedViewModel::class.java]
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.tripDetailsRecyclerView)
 
-        // Create fake trips data
-        val fakeTrips = listOf(
-            Trip(
-                tripId = "1",
-                startTime = System.currentTimeMillis() - 3600000,
-                endTime = System.currentTimeMillis(),
-                coordinates = listOf(
-                    LatLng(37.7749, -122.4194),
-                    LatLng(37.7849, -122.4094),
-                    LatLng(37.7949, -122.3994)
-                ),
-                speeds = listOf(10f, 20f, 30f)
-            ), Trip(
-                tripId = "2",
-                startTime = System.currentTimeMillis() - 7200000,
-                endTime = System.currentTimeMillis() - 3600000,
-                coordinates = listOf(
-                    LatLng(34.0522, -118.2437),
-                    LatLng(34.0622, -118.2337),
-                    LatLng(34.0722, -118.2237)
-                ),
-                speeds = listOf(15f, 35f, 45f)
-            )
-        )
-
-        adapter = TripHistoryAdapter(fakeTrips.toMutableList()) { tripId ->
+        adapter = TripHistoryAdapter(mutableListOf()) { tripId ->
             sharedViewModel.deleteTrip(tripId) { success ->
-                // Handle delete result
+                if (success) {
+                    // Handle successful deletion
+                }
             }
         }
         recyclerView.adapter = adapter
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
-        // Set up swipe-to-delete
+        // Observe trip history LiveData
+        sharedViewModel.tripHistory.observe(viewLifecycleOwner) { trips ->
+            adapter.trips.clear()
+            adapter.trips.addAll(trips)
+            adapter.notifyDataSetChanged()
+        }
+
+        // Fetch trip history
+        sharedViewModel.fetchTripHistory()
+
+        // Set up swipe-to-delete with confirmation dialog
         val itemTouchHelperCallback = object :
             ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
             override fun onMove(
@@ -83,14 +69,26 @@ class TripDetailsFragment : Fragment() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
                 val tripId = adapter.trips[position].tripId
-                sharedViewModel.deleteTrip(tripId) { success ->
-                    if (success) {
-                        adapter.trips.removeAt(position)
-                        adapter.notifyItemRemoved(position)
-                    } else {
+
+                // Show confirmation dialog
+                MaterialAlertDialogBuilder(requireContext()).setTitle("Delete Trip")
+                    .setMessage("Are you sure you want to delete this trip?")
+                    .setNegativeButton("Cancel") { dialog, _ ->
+                        dialog.dismiss()
                         adapter.notifyItemChanged(position)
-                    }
-                }
+                    }.setPositiveButton("Delete") { dialog, _ ->
+                        sharedViewModel.deleteTrip(tripId) { success ->
+                            if (success) {
+                                adapter.trips.removeAt(position)
+                                adapter.notifyItemRemoved(position)
+                            } else {
+                                adapter.notifyItemChanged(position)
+                            }
+                        }
+                        dialog.dismiss()
+                    }.setOnCancelListener {
+                        adapter.notifyItemChanged(position)
+                    }.show()
             }
         }
         ItemTouchHelper(itemTouchHelperCallback).attachToRecyclerView(recyclerView)

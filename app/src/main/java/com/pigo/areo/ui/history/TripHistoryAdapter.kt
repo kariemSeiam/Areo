@@ -5,10 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import com.pigo.areo.R
@@ -23,6 +25,7 @@ class TripHistoryAdapter(val trips: MutableList<Trip>, private val deleteTrip: (
     inner class TripViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val startTime: TextView = view.findViewById(R.id.startTime)
         val endTime: TextView = view.findViewById(R.id.endTime)
+        val distance: TextView = view.findViewById(R.id.distance)
         val mapView: MapView = view.findViewById(R.id.mapView)
 
         init {
@@ -32,33 +35,50 @@ class TripHistoryAdapter(val trips: MutableList<Trip>, private val deleteTrip: (
         fun bind(trip: Trip) {
             startTime.text = "Start: ${formatTime(trip.startTime)}"
             endTime.text = "End: ${formatTime(trip.endTime)}"
-            mapView.getMapAsync { googleMap ->
-                // Clear any previous polylines and markers
-                googleMap.clear()
 
-                // Display route with colored lines based on speed
+            mapView.getMapAsync { googleMap ->
+                googleMap.clear()
+                // Enable dark map style if night mode is enabled
+                if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES) {
+                    googleMap.setMapStyle(
+                        MapStyleOptions.loadRawResourceStyle(
+                            itemView.context,
+                            R.raw.map_style
+                        )
+                    )
+                }
+
                 val polylineOptions = PolylineOptions()
                 val boundsBuilder = LatLngBounds.Builder()
 
-                for (i in trip.coordinates.indices) {
-                    val color = getColorBasedOnSpeed(trip.speeds[i])
-                    polylineOptions.add(trip.coordinates[i]).color(color)
-                    boundsBuilder.include(trip.coordinates[i])
+                if (trip.coordinates.isNotEmpty()) {
+                    for (i in trip.coordinates.indices) {
+                        val color = Color.parseColor("#FF6750A4")
+                        val adjustedColor =
+                            if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES) {
+                                adjustColorForDarkMode(color)
+                            } else {
+                                color
+                            }
+                        val latLng = trip.coordinates[i].toLatLng()
+                        polylineOptions.add(latLng).color(adjustedColor)
+                        boundsBuilder.include(latLng)
+                    }
+
+                    googleMap.addPolyline(polylineOptions)
+
+                    googleMap.addMarker(
+                        MarkerOptions().position(trip.coordinates.first().toLatLng()).title("Start")
+                    )
+                    googleMap.addMarker(
+                        MarkerOptions().position(trip.coordinates.last().toLatLng()).title("End")
+                    )
+
+                    val bounds = boundsBuilder.build()
+                    val padding = 80
+                    val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
+                    googleMap.moveCamera(cameraUpdate)
                 }
-
-                googleMap.addPolyline(polylineOptions)
-
-                // Add markers for start and end points
-                googleMap.addMarker(
-                    MarkerOptions().position(trip.coordinates.first()).title("Start")
-                )
-                googleMap.addMarker(MarkerOptions().position(trip.coordinates.last()).title("End"))
-
-                // Adjust camera to fit the entire route
-                val bounds = boundsBuilder.build()
-                val padding = 50 // offset from edges of the map in pixels
-                val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
-                googleMap.moveCamera(cameraUpdate)
             }
         }
     }
@@ -74,7 +94,7 @@ class TripHistoryAdapter(val trips: MutableList<Trip>, private val deleteTrip: (
         holder.mapView.onResume()
     }
 
-    override fun getItemCount(): Int = trips.size
+    override fun getItemCount(): Int = minOf(trips.size, 5)
 
     private fun formatTime(time: Long?): String {
         return if (time != null) {
@@ -85,11 +105,13 @@ class TripHistoryAdapter(val trips: MutableList<Trip>, private val deleteTrip: (
         }
     }
 
-    private fun getColorBasedOnSpeed(speed: Float): Int {
-        return when {
-            speed < 20 -> Color.GREEN
-            speed < 40 -> Color.YELLOW
-            else -> Color.RED
-        }
+
+    private fun adjustColorForDarkMode(color: Int): Int {
+        val factor = 0.5f
+        return Color.rgb(
+            (Color.red(color) * factor).toInt(),
+            (Color.green(color) * factor).toInt(),
+            (Color.blue(color) * factor).toInt()
+        )
     }
 }

@@ -8,11 +8,10 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/_16sdp"
-        android:layout_marginTop="@dimen/_8sdp"
-        app:cardBackgroundColor="#EBE3FF"
-        app:cardCornerRadius="@dimen/_16sdp"
-        app:strokeWidth="0dp">
+        android:layout_margin="16dp"
+        app:cardCornerRadius="16dp"
+        app:strokeWidth="0dp"
+        app:cardElevation="8dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -25,6 +24,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:textAppearance="?attr/textAppearanceBody1"
+                android:fontFamily="@font/cairo_bold"
                 app:layout_constraintEnd_toStartOf="@id/endTime"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -36,20 +36,34 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:textAppearance="?attr/textAppearanceBody1"
+                android:fontFamily="@font/cairo_bold"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@id/startTime"
                 app:layout_constraintTop_toTopOf="parent"
                 tools:text="End: 09:00 AM" />
 
+            <TextView
+                android:id="@+id/distance"
+                android:layout_width="0dp"
+                android:visibility="gone"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAppearance="?attr/textAppearanceBody1"
+                android:fontFamily="@font/cairo_semibold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/startTime"
+                tools:text="Distance: 5 km" />
+
             <FrameLayout
                 android:id="@+id/mapContainer"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/_80sdp"
-                android:layout_margin="@dimen/_8sdp"
+                android:layout_height="@dimen/_150sdp"
+                android:layout_marginTop="8dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/startTime">
+                app:layout_constraintTop_toBottomOf="@id/distance">
 
                 <com.google.android.gms.maps.MapView
                     android:id="@+id/mapView"

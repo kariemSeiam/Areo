@@ -12,13 +12,12 @@
             type="com.pigo.areo.ui.create.CreateTripViewModel" />
     </data>
 
-
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         tools:context=".ui.create.CreateTripFragment">
 
-
+        <!-- Layout for selecting an airport location -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/selectingLayout"
             android:layout_width="match_parent"
@@ -45,20 +44,36 @@
                 app:layout_constraintStart_toStartOf="parent" />
 
             <TextView
+                android:id="@+id/tvSelectTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="?actionBarSize"
+                android:fontFamily="@font/cairo_bold"
+                android:gravity="center"
+                android:text="Airport"
+                android:textColor="#d0bcff"
+                android:textSize="@dimen/_24ssp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
                 android:id="@+id/textCurrentAddress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="?actionBarSize"
+                android:layout_marginTop="@dimen/_12sdp"
                 android:fontFamily="@font/cairo_bold"
                 android:gravity="center"
                 android:maxLines="1"
                 android:paddingHorizontal="@dimen/_16sdp"
                 android:paddingVertical="@dimen/_8sdp"
+                android:text="ST.4 Hassan El-Shekh Street"
                 android:textColor="#d0bcff"
                 android:textSize="@dimen/_18ssp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toBottomOf="@id/tvSelectTitle" />
 
             <TextView
                 android:id="@+id/textCurrentSubAddress"
@@ -68,6 +83,7 @@
                 android:maxLines="1"
                 android:paddingHorizontal="@dimen/_16sdp"
                 android:paddingVertical="@dimen/_8sdp"
+                android:text="بلبيس"
                 android:textColor="#d0bcff"
                 android:textSize="@dimen/_14ssp"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -88,47 +104,7 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/loginLayout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/background"
-            android:paddingHorizontal="@dimen/_16sdp"
-            android:paddingVertical="?actionBarSize"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <!-- Title TextView -->
-            <TextView
-                android:id="@+id/titleLoginAs"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:fontFamily="@font/cairo_bold"
-                android:gravity="center"
-                android:text="Login As"
-                android:textColor="@color/primary"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-
-
-
-            <Button
-                android:id="@+id/btnRoleConfirm"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_margin="@dimen/_16sdp"
-                android:text="@string/confirm"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
+        <!-- Layout for driver -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/driverLayout"
             android:layout_width="match_parent"
@@ -138,7 +114,6 @@
             android:paddingVertical="?actionBarSize"
             android:visibility="visible">
 
-            <!-- Title TextView -->
             <TextView
                 android:id="@+id/titleTextView"
                 android:layout_width="0dp"
@@ -153,7 +128,6 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Role Selection RadioGroup -->
             <RadioGroup
                 android:id="@+id/roleRadioGroup"
                 android:layout_width="0dp"
@@ -161,10 +135,10 @@
                 android:gravity="center"
                 android:onCheckedChanged="@{(group, checkedId) -> viewModel.onRoleChanged(checkedId == @id/radio_driver)}"
                 android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="@id/titleTextView"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@id/titleTextView"
-                app:layout_constraintTop_toTopOf="@id/titleTextView"
-                app:layout_constraintBottom_toBottomOf="@id/titleTextView">
+                app:layout_constraintTop_toTopOf="@id/titleTextView">
 
                 <RadioButton
                     android:id="@+id/radio_pilot"
@@ -182,31 +156,6 @@
             </RadioGroup>
 
 
-            <!-- Pilot Location Input Layout -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/pilotLocationInputLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:hint="@string/pilot_location"
-                android:enabled="false"
-                app:endIconDrawable="@drawable/ic_map"
-                app:endIconMode="custom"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/titleTextView">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/pilotLocationEditText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:enabled="@{!viewModel.isTripRunning}"
-                    android:text="@{viewModel.pilotLocation.toString()}"
-                    android:textSize="14sp" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Airport Location Input Layout -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/airportLocationInputLayout"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
@@ -219,7 +168,8 @@
                 app:endIconOnClickListener="@{() -> viewModel.selectAirportLocation()}"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/pilotLocationInputLayout">
+                app:layout_constraintTop_toBottomOf="@id/roleRadioGroup"
+                app:shapeAppearance="@style/ThemeOverlay.Material3.TextInputEditText.FilledBox">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/airportLocationEditText"
@@ -230,7 +180,6 @@
                     android:textSize="14sp" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Search Results RecyclerView for Airport Location -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/airportLocationSearchResultsRecyclerView"
                 android:layout_width="0dp"
@@ -241,26 +190,20 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/airportLocationInputLayout" />
 
-            <!-- layout.xml -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/startTripButton"
                 style="@style/StartTripStateButton"
+                app:layout_constraintBottom_toBottomOf="parent"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/cairo_bold"
                 android:onClick="@{() -> viewModel.toggleTripState()}"
                 android:text="@{viewModel.isTripRunning ? @string/stop_trip : @string/start_trip}"
+                android:textStyle="bold"
+                android:layout_marginTop="@dimen/_12sdp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/airportLocationSearchResultsRecyclerView"
-                app:layout_constraintBottom_toBottomOf="parent"
-                android:layout_marginVertical="@dimen/_24sdp"
-                />
-
-
-
-
+                app:layout_constraintTop_toBottomOf="@id/airportLocationSearchResultsRecyclerView" />
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-
     </FrameLayout>
 </layout>

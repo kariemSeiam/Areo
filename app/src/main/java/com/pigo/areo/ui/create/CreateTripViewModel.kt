@@ -1,5 +1,7 @@
 package com.pigo.areo.ui.create
 
+import android.annotation.SuppressLint
+import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -13,12 +15,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewModel() {
+class CreateTripViewModel(
+    private val sharedViewModel: SharedViewModel,
+    @SuppressLint("StaticFieldLeak") val context: Context
+) : ViewModel() {
 
     private val geolinkApiService = GeolinkApiService()
-
-    private val _pilotLocation = MutableLiveData<String>()
-    val pilotLocation: LiveData<String> get() = _pilotLocation
 
     val _airportLocation = MutableLiveData<String>()
     val airportLocation: LiveData<String> get() = _airportLocation
@@ -32,26 +34,13 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     private val _selectAirportLocationEvent = MutableLiveData<Unit>()
     val selectAirportLocationEvent: LiveData<Unit> get() = _selectAirportLocationEvent
 
-
     private val _airportSearchResults = MutableLiveData<List<SearchResult>>()
     val airportSearchResults: LiveData<List<SearchResult>> get() = _airportSearchResults
 
     private var airportSearchJob: Job? = null
 
     init {
-        observeCurrentLocation()
-    }
-
-
-
-    private fun observeCurrentLocation() {
-
-        sharedViewModel.pilotLatLng?.let {
-            reverseGeocodeLocation(it) { address ->
-                _pilotLocation.value = address.data.address
-            }
-        }
-
+        _isTripRunning.value = getSavedTripState()
     }
 
     fun onRoleChanged(isDriver: Boolean) {
@@ -61,16 +50,30 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     fun toggleTripState() {
         val newState = !(_isTripRunning.value ?: false)
         _isTripRunning.value = newState
+        saveTripState(newState)
         if (newState) {
             sharedViewModel.startTrip()
         } else {
             sharedViewModel.stopTrip()
-            sharedViewModel.removeLocation("pilot_location")
-            sharedViewModel.removeLocation("airport_location")
-            sharedViewModel.removeLocation("driver_location")
+            clearLocations()
         }
     }
 
+    private fun clearLocations() {
+        sharedViewModel.removeLocation("pilot_location")
+        sharedViewModel.removeLocation("airport_location")
+        sharedViewModel.removeLocation("driver_location")
+    }
+
+    private fun saveTripState(isRunning: Boolean) {
+        val sharedPreferences = context.getSharedPreferences("trip_prefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit().putBoolean("is_trip_running", isRunning).apply()
+    }
+
+    private fun getSavedTripState(): Boolean {
+        val sharedPreferences = context.getSharedPreferences("trip_prefs", Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean("is_trip_running", false)
+    }
 
     fun selectAirportLocation() {
         _selectAirportLocationEvent.value = Unit
@@ -81,11 +84,15 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
         airportSearchJob = performLocationSearch(query, _airportSearchResults)
     }
 
-    private fun performLocationSearch(query: String, resultsLiveData: MutableLiveData<List<SearchResult>>): Job {
+    private fun performLocationSearch(
+        query: String, resultsLiveData: MutableLiveData<List<SearchResult>>
+    ): Job {
         return viewModelScope.launch {
             delay(500)
             sharedViewModel.currentLatLng.value?.let { latLng ->
-                geolinkApiService.textSearch(query, latLng.latitude, latLng.longitude,
+                geolinkApiService.textSearch(query,
+                    latLng.latitude,
+                    latLng.longitude,
                     onSuccess = { response -> resultsLiveData.postValue(response.data) },
                     onFailure = { /* Handle error */ })
             }
@@ -95,9 +102,8 @@ class CreateTripViewModel(private val sharedViewModel: SharedViewModel) : ViewMo
     fun reverseGeocodeLocation(latLng: LatLng, callback: (ReverseGeocodeResponse) -> Unit) {
         viewModelScope.launch {
             geolinkApiService.reverseGeocode(latLng.latitude, latLng.longitude).collect { result ->
-                result.onSuccess { response ->
-                    callback(response)
-                }.onFailure { /* Handle failure */ }
+                result.onSuccess { response -> callback(response) }
+                    .onFailure { /* Handle failure */ }
             }
         }
     }

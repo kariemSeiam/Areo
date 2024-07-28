@@ -30,10 +30,11 @@ import com.google.firebase.database.FirebaseDatabase
 import com.pigo.areo.shared.SharedViewModel.UserRole
 import com.pigo.areo.ui.current_trip.CustomLatLng
 import com.pigo.areo.ui.current_trip.Trip
-import com.pigo.areo.utils.SharedPreferencesUtil
+import com.pigo.areo.utils.DataStoreUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -156,30 +157,32 @@ class LocationService : Service() {
 
     private fun getUserRoleFromSharedPrefs(): UserRole? {
         val userRoleString = sharedPreferences.getString("user_role", null)
-        Log.e("TestRoless","--- $userRoleString")
         return userRoleString?.let {
             UserRole.valueOf(it)
         }
     }
 
 
-    private fun addTripLocation(latLng: LatLng) {
-        val currentTrip = SharedPreferencesUtil.getTrip(this)
-        if (currentTrip != null) {
-            if (lastTempLocation == null || distanceBetween(
-                    lastTempLocation!!.toLatLng(),
-                    latLng
-                ) > 3.0
-            ) {
-                val updatedTrip = currentTrip.copy(
-                    coordinates = currentTrip.coordinates + CustomLatLng.fromLatLng(latLng)
-                )
-                SharedPreferencesUtil.saveTrip(this, updatedTrip)
-                saveTripToFirebase(updatedTrip)
-                lastTempLocation = CustomLatLng.fromLatLng(latLng)
+    private suspend fun addTripLocation(latLng: LatLng) {
+        serviceScope.launch {
+            val currentTrip = DataStoreUtil.getTripFlow(applicationContext).first()
+            if (currentTrip != null) {
+                if (lastTempLocation == null || distanceBetween(
+                        lastTempLocation!!.toLatLng(), latLng
+                    ) > 3.0
+                ) {
+                    val updatedTrip = currentTrip.copy(
+                        coordinates = currentTrip.coordinates + CustomLatLng.fromLatLng(latLng)
+                    )
+                    DataStoreUtil.saveTrip(applicationContext, updatedTrip)
+                    saveTripToFirebase(updatedTrip)
+                    lastTempLocation = CustomLatLng.fromLatLng(latLng)
+                }
             }
         }
+
     }
+
 
     private fun distanceBetween(start: LatLng, end: LatLng): Double {
         val results = FloatArray(1)
@@ -200,7 +203,6 @@ class LocationService : Service() {
         }
     }
 
-    // ... (Your existing createNotification, onBind, onDestroy) ...
 
     private fun acquireWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager

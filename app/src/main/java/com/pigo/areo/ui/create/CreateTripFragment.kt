@@ -56,9 +56,18 @@ class CreateTripFragment : Fragment() {
         return binding.root
     }
 
+
     override fun onResume() {
         super.onResume()
         showDriverLayout()
+        sharedViewModel.userRole.value?.let {
+            binding.roleRadioGroup.check(
+                when (it) {
+                    SharedViewModel.UserRole.DRIVER -> R.id.radio_driver
+                    SharedViewModel.UserRole.PILOT -> R.id.radio_pilot
+                }
+            )
+        }
         binding.airportLocationSearchResultsRecyclerView.visibility =
             if (binding.airportLocationEditText.isEnabled) {
                 View.VISIBLE
@@ -74,18 +83,6 @@ class CreateTripFragment : Fragment() {
     }
 
     private fun setUpObservers() {
-        sharedViewModel.userRole.observe(viewLifecycleOwner) { user ->
-            showDriverLayout()
-            binding.roleRadioGroup.check(
-                when (user) {
-                    SharedViewModel.UserRole.DRIVER -> R.id.radio_driver
-                    SharedViewModel.UserRole.PILOT -> R.id.radio_pilot
-                    else -> throw IllegalArgumentException("Unknown user role")
-                }
-            )
-            // Enable or disable EditText and RecyclerView based on the user role and trip state
-            updateViewVisibility(user, createTripViewModel.isTripRunning.value ?: false)
-        }
 
         createTripViewModel.isTripRunning.observe(viewLifecycleOwner) { isRunning ->
             binding.startTripButton.apply {

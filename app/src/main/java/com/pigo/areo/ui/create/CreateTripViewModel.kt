@@ -48,14 +48,17 @@ class CreateTripViewModel(
     }
 
     fun toggleTripState() {
+        val user = sharedViewModel.userRole.value
         val newState = !(_isTripRunning.value ?: false)
         _isTripRunning.value = newState
         saveTripState(newState)
-        if (newState) {
+        if (newState && user == SharedViewModel.UserRole.DRIVER) {
             sharedViewModel.startTrip()
-        } else {
+        } else if (user == SharedViewModel.UserRole.DRIVER) {
             sharedViewModel.stopTrip()
             clearLocations()
+        }else{
+            _isTripRunning.postValue(false)
         }
     }
 

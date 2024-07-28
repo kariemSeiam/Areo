@@ -1,7 +1,6 @@
 package com.pigo.areo.shared
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -10,6 +9,7 @@ import android.location.Location
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -43,13 +43,18 @@ import com.pigo.areo.geolink.models.findShortestPath
 import com.pigo.areo.ui.current_trip.CustomLatLng
 import com.pigo.areo.ui.current_trip.Trip
 import com.pigo.areo.utils.CompassManager
-import com.pigo.areo.utils.SharedPreferencesUtil
+import com.pigo.areo.utils.DataStoreUtil
+import com.pigo.areo.utils.DataStoreUtil.dataStore
+import com.pigo.areo.utils.PreferencesKeys
 import com.pigo.areo.utils.SphericalUtil
 import com.pigo.areo.utils.removeLocationTask
 import com.pigo.areo.utils.setLocationTask
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -60,8 +65,7 @@ import kotlin.math.sin
 class SharedViewModel(context: Context) : ViewModel() {
 
     private val appContext: Context = context.applicationContext
-    private val sharedPreferences: SharedPreferences =
-        context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+
 
     private val _userRole = MutableLiveData<UserRole>()
     val userRole: LiveData<UserRole> = _userRole
@@ -114,6 +118,7 @@ class SharedViewModel(context: Context) : ViewModel() {
     val tripHistory = MutableLiveData<List<Trip>>()
 
 
+
     private val defaultLatLng = LatLng(0.0, 0.0)
     private val apiService = GeolinkApiService()
 
@@ -127,7 +132,6 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     init {
         initializeGeoFire()
-        loadUserRole()
         loadLastFetchedLatLng()
         loadLastSavedTrip()
         setupGeoQuery()
@@ -190,9 +194,13 @@ class SharedViewModel(context: Context) : ViewModel() {
         }
     }
 
+
     private fun loadLastSavedTrip() {
-        _currentTrip.value = null
-        _currentTrip.value = SharedPreferencesUtil.getTrip(appContext)
+        viewModelScope.launch {
+            DataStoreUtil.getTripFlow(appContext).collect { trip ->
+                trip?.let { _currentTrip.postValue(it) }
+            }
+        }
     }
 
     fun startTrip() {
@@ -201,8 +209,11 @@ class SharedViewModel(context: Context) : ViewModel() {
             tripId, System.currentTimeMillis(), null, emptyList(), emptyList(), startTrip = true
         )
         _currentTrip.value = trip
-        SharedPreferencesUtil.saveTrip(appContext, trip)
-        saveTripToFirebase(trip)
+        viewModelScope.launch {
+            DataStoreUtil.clearTrip(appContext)
+            DataStoreUtil.saveTrip(appContext, trip)
+            saveTripToFirebase(trip)
+        }
     }
 
     fun stopTrip() {
@@ -211,7 +222,10 @@ class SharedViewModel(context: Context) : ViewModel() {
             _currentTrip.value = updatedTrip
             saveTripToFirebase(updatedTrip)
             _currentTrip.value = null
-            SharedPreferencesUtil.clearTrip(appContext)
+            viewModelScope.launch {
+                DataStoreUtil.clearTrip(appContext)
+
+            }
         }
     }
 
@@ -227,24 +241,23 @@ class SharedViewModel(context: Context) : ViewModel() {
 
 
     fun addTripLocation(latLng: LatLng) {
-        _currentTrip.value?.let { trip ->
+        currentTrip.value?.let { trip ->
             val lastLocation = lastTempLocation.value
 
             if (lastLocation == null || distanceBetween(lastLocation.toLatLng(), latLng) > 3.0) {
                 val updatedTrip = trip.copy(
                     coordinates = trip.coordinates + CustomLatLng.fromLatLng(latLng)
                 )
-                _currentTrip.value = updatedTrip
+                viewModelScope.launch {
+                    DataStoreUtil.saveTrip(appContext, updatedTrip)
 
-                // Update the last location
-                _lastTempLocation.value = CustomLatLng.fromLatLng(latLng)
+                }
 
-                // Save the trip data
-                SharedPreferencesUtil.saveTrip(appContext, updatedTrip)
                 saveTripToFirebase(updatedTrip)
             }
         }
     }
+
 
     private fun distanceBetween(start: LatLng, end: LatLng): Double {
         val results = FloatArray(1)
@@ -377,11 +390,31 @@ class SharedViewModel(context: Context) : ViewModel() {
         geoFire = GeoFire(databaseReference)
     }
 
-    fun loadUserRole(): UserRole? {
-        val userRoleString = sharedPreferences.getString("user_role", null)
-        return userRoleString?.let {
-            UserRole.valueOf(it).also { role ->
-                _userRole.value = role
+
+    private val userRoleFlow: Flow<UserRole?> = appContext.dataStore.data.map { preferences ->
+        val userRoleString = preferences[PreferencesKeys.USER_ROLE]
+        userRoleString?.let { UserRole.valueOf(it) }
+    }.catch {
+        Log.e("SharedViewModel", "Error in userRoleFlow", it)
+        emit(UserRole.PILOT) // Or another default UserRole value
+    }
+
+
+    // Method to save UserRole to DataStore
+    private fun saveUserRole(userRole: UserRole) {
+        viewModelScope.launch {
+            appContext.dataStore.edit { preferences ->
+                preferences[PreferencesKeys.USER_ROLE] = userRole.name
+            }
+        }
+    }
+
+    private fun loadUserRole() {
+        viewModelScope.launch {
+            userRoleFlow.collect { role ->
+                if (role != null) {
+                    _userRole.postValue(role)
+                }
             }
         }
     }
@@ -397,21 +430,10 @@ class SharedViewModel(context: Context) : ViewModel() {
 
     fun loginAs(role: UserRole) {
         _userRole.value = role
-        sharedPreferences.edit().clear().apply()
-        sharedPreferences.edit().putString("user_role", role.name).apply()
+        saveUserRole(role)
+
     }
 
-
-
-
-    fun switchUserRole() {
-        _userRole.value = when (_userRole.value) {
-            UserRole.PILOT -> UserRole.DRIVER
-            UserRole.DRIVER -> UserRole.PILOT
-            else -> return
-        }
-        sharedPreferences.edit().putString("user_role", _userRole.value?.name).apply()
-    }
 
     fun setGoogleMap(map: GoogleMap) {
         _googleMap.value = map
@@ -421,13 +443,13 @@ class SharedViewModel(context: Context) : ViewModel() {
     fun updateCurrentLatLng(latLng: LatLng) {
         _currentLatLng.postValue(latLng) // Updates the LiveData with the new LatLng
         saveLastFetchedLatLng(latLng) // Saves the last fetched LatLng (assuming it's a persistent storage operation)
-        loadUserRole()
-
         // Depending on the user's role, update the corresponding location
+
+        loadUserRole()
         when (userRole.value) {
             UserRole.DRIVER -> updateDriverLatLng(latLng) // Updates driver's location
             UserRole.PILOT -> updatePilotLatLng(latLng) // Updates pilot's location
-            else -> loginAs(UserRole.PILOT)
+            else -> return
         }
 
         // If it's the initial camera move, update the camera position
@@ -970,21 +992,26 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     private fun saveLastFetchedLatLng(latLng: LatLng) {
-        sharedPreferences.edit().putString("last_fetched_lat", latLng.latitude.toString())
-            .putString("last_fetched_lng", latLng.longitude.toString()).apply()
+        viewModelScope.launch {
+            appContext.dataStore.edit { preferences ->
+                preferences[PreferencesKeys.LAST_FETCHED_LAT] = latLng.latitude.toString()
+                preferences[PreferencesKeys.LAST_FETCHED_LNG] = latLng.longitude.toString()
+            }
+        }
     }
 
     private fun loadLastFetchedLatLng() {
-        val lat = sharedPreferences.getString("last_fetched_lat", null)?.toDoubleOrNull()
-            ?: defaultLatLng.latitude
-        val lng = sharedPreferences.getString("last_fetched_lng", null)?.toDoubleOrNull()
-            ?: defaultLatLng.longitude
-        _currentLatLng.value = LatLng(lat, lng)
+        viewModelScope.launch {
+            DataStoreUtil.getLastFetchedLatLngFlow(appContext).collect { latLng ->
+                _currentLatLng.postValue(latLng)
+            }
+        }
     }
 
     enum class UserRole {
         PILOT, DRIVER
     }
-}
 
+
+}
 

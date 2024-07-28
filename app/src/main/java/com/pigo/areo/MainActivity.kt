@@ -56,23 +56,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         SharedViewModelFactory(applicationContext)
     }
 
-    // Force Stop and Restart Application
-    private fun forceStopAndRestartApp() {
-        // Finish the current Activity
-        finish()
-
-        // Restart the application
-        val packageManager = packageManager
-        val intent = packageManager.getLaunchIntentForPackage(packageName)
-        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
-
-        // Optional: Kill the current process (use with caution)
-        // android.os.Process.killProcess(android.os.Process.myPid())
-    }
-
     private var cameraUpdateJob: Job? = null
-
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -114,22 +98,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun requestLocationPermissions() {
-        val permissionsToRequest = arrayOf(
+        val permissionsToRequest = mutableListOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.WAKE_LOCK
         )
+
+        // Request background location permission on Android 10 (API level 29) and higher
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
 
         if (permissionsToRequest.all {
                 ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
             }) {
-            // All permissions granted, check for battery optimization
+            // All permissions already granted
             checkBatteryOptimization()
         } else {
-            requestPermissionLauncher.launch(permissionsToRequest)
+            // Request permissions
+            requestPermissionLauncher.launch(
+                permissionsToRequest.toTypedArray()
+            )
         }
     }
-
     private fun checkBatteryOptimization() {
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
@@ -224,7 +214,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             sharedViewModel.updateCurrentMarkerAndAddMarkers(gMap)
             Log.d("LocationUpdate", "Updated current marker and added markers")
         }
-        animateCameraToLocation(currentLatLng)
 
     }
 

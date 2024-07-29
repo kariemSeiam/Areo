@@ -1,8 +1,9 @@
-package com.pigo.areo.geolink
+package com.pigo.areo.data.remote.api
 
-import com.pigo.areo.geolink.models.DirectionResponse
-import com.pigo.areo.geolink.models.ReverseGeocodeResponse
-import com.pigo.areo.geolink.models.TextSearchResponse
+import com.pigo.areo.data.model.DirectionResponse
+import com.pigo.areo.data.model.ReverseGeocodeResponse
+import com.pigo.areo.data.model.TextSearchResponse
+import com.pigo.areo.data.remote.GeolinkService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

@@ -16,8 +16,7 @@ android {
         versionCode 1
         versionName "1.0"
 
-        resValue "string", "maps_api_key", (project.findProperty("MAPS_API_KEY") ?: "AIzaSyBR_YrfYBJuF44vDnMC5KnSbQcdYqUBnwI")
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        resValue "string", "maps_api_key", (project.hasProperty("MAPS_API_KEY") ? project.property("MAPS_API_KEY") : "")
     }
 
     buildTypes {

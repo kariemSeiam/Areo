@@ -5,8 +5,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
+import com.pigo.areo.data.model.Trip
 import com.pigo.areo.shared.SharedViewModel.UserRole
-import com.pigo.areo.ui.current_trip.Trip
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

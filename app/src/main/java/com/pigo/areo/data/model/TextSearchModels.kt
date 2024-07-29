@@ -1,4 +1,4 @@
-package com.pigo.areo.geolink.models
+package com.pigo.areo.data.model
 
 import com.google.gson.annotations.SerializedName
 

@@ -3,8 +3,8 @@ package com.pigo.areo.ui.create
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.pigo.areo.data.model.SearchResult
 import com.pigo.areo.databinding.ItemSearchResultBinding
-import com.pigo.areo.geolink.models.SearchResult
 
 class SearchResultAdapter(
     private val onItemClick: (SearchResult) -> Unit

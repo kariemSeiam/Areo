@@ -35,6 +35,7 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.pigo.areo.databinding.ActivityMainBinding
+import com.pigo.areo.service.LocationService
 import com.pigo.areo.shared.SharedViewModel
 import com.pigo.areo.shared.SharedViewModelFactory
 import kotlinx.coroutines.Job

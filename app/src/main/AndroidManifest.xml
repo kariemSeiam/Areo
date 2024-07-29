@@ -37,7 +37,7 @@
             android:resource="@array/preloaded_fonts" />
 
         <receiver
-            android:name=".BootCompleteReceiver"
+            android:name=".service.BootCompleteReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
@@ -47,7 +47,7 @@
         </receiver>
 
         <service
-            android:name=".LocationService"
+            android:name=".service.LocationService"
             android:exported="false"
             android:enabled="true"
             android:foregroundServiceType="location"

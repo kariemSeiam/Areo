@@ -36,12 +36,12 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.pigo.areo.R
-import com.pigo.areo.data.remote.api.GeolinkApiService
+import com.pigo.areo.data.model.CustomLatLng
 import com.pigo.areo.data.model.DirectionResponse
 import com.pigo.areo.data.model.Route
-import com.pigo.areo.data.model.findShortestPath
-import com.pigo.areo.data.model.CustomLatLng
 import com.pigo.areo.data.model.Trip
+import com.pigo.areo.data.model.findShortestPath
+import com.pigo.areo.data.remote.api.GeolinkApiService
 import com.pigo.areo.utils.CompassManager
 import com.pigo.areo.utils.DataStoreUtil
 import com.pigo.areo.utils.DataStoreUtil.dataStore
@@ -99,7 +99,6 @@ class SharedViewModel(context: Context) : ViewModel() {
     private val geoQueries = mutableMapOf<String, GeoQuery>()
 
     private var currentPolyline: Polyline? = null
-    private var secondPolyline: Polyline? = null
     private var currentMarker: Marker? = null
     private var driverMarker: Marker? = null
     private var airportMarker: Marker? = null
@@ -116,7 +115,6 @@ class SharedViewModel(context: Context) : ViewModel() {
 
 
     val tripHistory = MutableLiveData<List<Trip>>()
-
 
 
     private val defaultLatLng = LatLng(0.0, 0.0)
@@ -420,7 +418,6 @@ class SharedViewModel(context: Context) : ViewModel() {
     }
 
     private fun updateDirectionResponse(routeResponse: Route, isAirportRoute: Boolean) {
-
         if (isAirportRoute) {
             _secRouteResponse.value = routeResponse
         } else {
@@ -532,6 +529,7 @@ class SharedViewModel(context: Context) : ViewModel() {
                     updateCurrentMarkerAndAddMarkers(googleMap.value!!)
                 }
             })
+
     }
 
     private fun handlePilotCameraUpdate(preZoom: Boolean) {
@@ -586,31 +584,48 @@ class SharedViewModel(context: Context) : ViewModel() {
             getBitmapDescriptorFromVector(R.drawable.ic_pilot_custom, markerSize, markerSize)
         val icPlane = getBitmapDescriptorFromVector(R.drawable.ic_airport, markerSize, markerSize)
 
+        // Log the start of the function
+        Log.d("MarkerUpdate", "Updating current marker and adding other markers.")
+
         currentLatLng.value?.let { currentUserLatLng ->
             val icCurrent = when (_userRole.value) {
                 UserRole.PILOT -> icPilot
                 UserRole.DRIVER -> icCar
-                else -> return
+                else -> {
+                    Log.w("MarkerUpdate", "Unknown user role. Skipping marker update.")
+                    return
+                }
             }
+            Log.d("MarkerUpdate", "User role: ${_userRole.value}. Using icon: $icCurrent")
+
             currentMarker?.remove()
+            Log.d("MarkerUpdate", "Removed previous current marker.")
+
             currentMarker = map.addMarker(
                 MarkerOptions().position(currentUserLatLng).icon(icCurrent).anchor(0.5f, 0.5f)
             )
+            Log.d("MarkerUpdate", "Added current marker at position: $currentUserLatLng")
+
             when (_userRole.value) {
                 UserRole.DRIVER -> driverLatLng = currentUserLatLng
                 UserRole.PILOT -> pilotLatLng = currentUserLatLng
-                else -> TODO()
+                else -> Log.e("MarkerUpdate", "Unhandled user role: ${_userRole.value}")
             }
-        }
+
+        } ?: Log.w("MarkerUpdate", "CurrentLatLng is null. Cannot update current marker.")
 
         fetchAirportLocation { airportLocationLatLng ->
-            airportLatLng = airportLocationLatLng
             airportLatLng?.let {
+                Log.d("MarkerUpdate", "Fetched airport location: $airportLocationLatLng")
+
                 airportMarker?.remove()
+                Log.d("MarkerUpdate", "Removed previous airport marker.")
+
                 airportMarker = map.addMarker(
                     MarkerOptions().position(it).icon(icPlane).anchor(0.5f, 0.5f)
                 )
-            }
+                Log.d("MarkerUpdate", "Added airport marker at position: $it")
+            } ?: Log.w("MarkerUpdate", "Airport location is null. Cannot add airport marker.")
 
             fetchOtherUserLocation { otherUserLatLng ->
                 otherUserLatLng?.let {
@@ -623,11 +638,20 @@ class SharedViewModel(context: Context) : ViewModel() {
                         it.longitude,
                         distance
                     )
-                    Log.e("TestSSSS", distance[0].toString())
+                    Log.d(
+                        "MarkerUpdate", "Calculated distance to other user: ${distance[0]} meters"
+                    )
+
                     val otherUserIconResId = when (_userRole.value) {
                         UserRole.PILOT -> icCar
                         UserRole.DRIVER -> icPilot
-                        else -> TODO()
+                        else -> {
+                            Log.e(
+                                "MarkerUpdate",
+                                "Unknown user role for other user. Skipping marker update."
+                            )
+                            return@fetchOtherUserLocation
+                        }
                     }
 
                     when (_userRole.value) {
@@ -639,67 +663,108 @@ class SharedViewModel(context: Context) : ViewModel() {
                             driverLatLng = otherUserLatLng
                         }
 
-                        else -> TODO()
+                        else -> Log.e("MarkerUpdate", "Unhandled user role: ${_userRole.value}")
                     }
 
-
                     // If the distance is greater than 10 meters, show the marker
-                    if (distance[0] > 25) {
+                    if (distance[0] > 3) {
                         _tempRoute.postValue(false)
+                        Log.d(
+                            "MarkerUpdate",
+                            "Distance is greater than 3 meters. Adding marker for other user."
+                        )
+
                         driverMarker?.remove()
                         driverMarker = map.addMarker(
                             MarkerOptions().position(it).icon(otherUserIconResId).anchor(0.5f, 0.5f)
                         )
-
                     } else {
                         _tempRoute.postValue(true)
+                        Log.d(
+                            "MarkerUpdate",
+                            "Distance is 3 meters or less. Removing marker for other user."
+                        )
+
                         // If the distance is 10 meters or less, remove the marker
                         driverMarker?.remove()
                     }
-                    updateRoutesBasedOnRole(currentLatLng.value!!, it)
+                } ?: Log.w("MarkerUpdate", "Other user location is null. Cannot update markers.")
 
-                }
+                updateRoutesBasedOnRole(currentLatLng.value!!, otherUserLatLng)
             }
+
+
         }
     }
 
-    private fun updateRoutesBasedOnRole(currentLatLng: LatLng, otherUserLatLng: LatLng) {
+    private fun updateRoutesBasedOnRole(currentLatLng: LatLng, otherUserLatLng: LatLng? = null) {
         val tempBool = (tempRoute.value == true)
+        Log.d("UpdateRoutes", "tempRoute.value: $tempBool")
+        Log.d("UpdateRoutes", "UserRole: ${_userRole.value}")
+        Log.d("UpdateRoutes", "CurrentLatLng: $currentLatLng")
+        Log.d("UpdateRoutes", "OtherUserLatLng: $otherUserLatLng")
+        Log.d("UpdateRoutes", "AirportLatLng: $airportLatLng")
+
         when (_userRole.value) {
             UserRole.DRIVER -> {
+                Log.d("UpdateRoutes", "Role is DRIVER")
                 if (airportLatLng != null) {
                     if (!tempBool) {
-                        updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot
+                        Log.d("UpdateRoutes", "Updating route from DRIVER to PILOT")
+                        otherUserLatLng?.let {
+                            updateRoute(currentLatLng, it, false) // Driver to Pilot
+                        } ?: updateRoute(currentLatLng, airportLatLng!!, true) // Driver to Airport
+                    } else {
+                        Log.d("UpdateRoutes", "Skipping DRIVER to PILOT route update")
                     }
-                    updateRoute(otherUserLatLng, airportLatLng!!, true) // Pilot to Airport
+                    Log.d("UpdateRoutes", "Updating route from PILOT to AIRPORT")
+                    otherUserLatLng?.let {
+                        updateRoute(it, airportLatLng!!, true) // Pilot to Airport
+                    }
                 } else {
-                    updateRoute(currentLatLng, otherUserLatLng, false) // Driver to Pilot only
+                    Log.d("UpdateRoutes", "AirportLatLng is null, updating route from DRIVER to PILOT only")
+                    otherUserLatLng?.let {
+                        updateRoute(currentLatLng, it, false) // Driver to Pilot only
+                    }
                 }
             }
 
             UserRole.PILOT -> {
+                Log.d("UpdateRoutes", "Role is PILOT")
                 if (airportLatLng != null) {
                     if (!tempBool) {
-                        updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot
+                        Log.d("UpdateRoutes", "Updating route from DRIVER to PILOT")
+                        otherUserLatLng?.let {
+                            updateRoute(it, currentLatLng, false) // Driver to Pilot
+                        }
+                    } else {
+                        Log.d("UpdateRoutes", "Skipping DRIVER to PILOT route update")
                     }
+                    Log.d("UpdateRoutes", "Updating route from PILOT to AIRPORT")
                     updateRoute(currentLatLng, airportLatLng!!, true) // Pilot to Airport
                 } else {
-                    updateRoute(otherUserLatLng, currentLatLng, false) // Driver to Pilot only
-
+                    Log.d("UpdateRoutes", "AirportLatLng is null, updating route from DRIVER to PILOT only")
+                    otherUserLatLng?.let {
+                        updateRoute(it, currentLatLng, false) // Driver to Pilot only
+                    }
                 }
             }
 
-            else -> TODO()
+            else -> {
+                Log.e("UpdateRoutes", "Unexpected role: ${_userRole.value}")
+                TODO()
+            }
         }
     }
 
-    private fun updateRoute(startLatLng: LatLng, endLatLng: LatLng, isAirportRoute: Boolean) {
-        val cachedRoute = getCachedRoute(startLatLng, endLatLng)
+
+
+    private fun updateRoute(startLatLng: LatLng, endLatLng: LatLng, isAirportRoute: Boolean) {/*val cachedRoute = getCachedRoute(startLatLng, endLatLng)
         if (cachedRoute != null) {
             // Use the cached route
             updateWaypoints(startLatLng, endLatLng, cachedRoute, isAirportRoute)
             return
-        }
+        }*/
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -970,7 +1035,14 @@ class SharedViewModel(context: Context) : ViewModel() {
         val key = if (_userRole.value == UserRole.PILOT) "driver_location" else "pilot_location"
         geoFire.getLocation(key, object : LocationCallback {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
-                callback(location?.let { LatLng(it.latitude, it.longitude) })
+                callback(location?.let {
+                    if (key == "driver_location") {
+                        driverLatLng = LatLng(it.latitude, it.longitude)
+                    } else {
+                        pilotLatLng = LatLng(it.latitude, it.longitude)
+                    }
+                    LatLng(it.latitude, it.longitude)
+                })
             }
 
             override fun onCancelled(databaseError: DatabaseError?) {
@@ -982,7 +1054,11 @@ class SharedViewModel(context: Context) : ViewModel() {
     private fun fetchAirportLocation(callback: (LatLng?) -> Unit) {
         geoFire.getLocation("airport_location", object : LocationCallback {
             override fun onLocationResult(key: String?, location: GeoLocation?) {
-                callback(location?.let { LatLng(it.latitude, it.longitude) })
+
+                callback(location?.let {
+                    airportLatLng = LatLng(it.latitude, it.longitude)
+                    airportLatLng
+                })
             }
 
             override fun onCancelled(databaseError: DatabaseError?) {

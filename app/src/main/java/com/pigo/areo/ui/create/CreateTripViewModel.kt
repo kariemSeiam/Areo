@@ -7,9 +7,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
-import com.pigo.areo.geolink.GeolinkApiService
-import com.pigo.areo.geolink.models.ReverseGeocodeResponse
-import com.pigo.areo.geolink.models.SearchResult
+import com.pigo.areo.data.model.ReverseGeocodeResponse
+import com.pigo.areo.data.model.SearchResult
+import com.pigo.areo.data.remote.api.GeolinkApiService
 import com.pigo.areo.shared.SharedViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

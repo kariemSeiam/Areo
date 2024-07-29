@@ -9,8 +9,8 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import com.google.android.gms.maps.GoogleMap
 import com.pigo.areo.R
+import com.pigo.areo.data.model.Route
 import com.pigo.areo.databinding.FragmentCurrentTripBinding
-import com.pigo.areo.geolink.models.Route
 import com.pigo.areo.shared.SharedViewModel
 import com.pigo.areo.shared.SharedViewModelFactory
 import com.pigo.areo.ui.create.CreateTripViewModel

@@ -1,4 +1,4 @@
-package com.pigo.areo
+package com.pigo.areo.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -27,9 +27,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.FirebaseApp
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.pigo.areo.R
 import com.pigo.areo.shared.SharedViewModel.UserRole
-import com.pigo.areo.ui.current_trip.CustomLatLng
-import com.pigo.areo.ui.current_trip.Trip
+import com.pigo.areo.data.model.CustomLatLng
+import com.pigo.areo.data.model.Trip
 import com.pigo.areo.utils.DataStoreUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -1,4 +1,4 @@
-package com.pigo.areo.ui.current_trip
+package com.pigo.areo.data.model
 
 import com.google.android.gms.maps.model.LatLng
 

@@ -17,8 +17,10 @@ Seamlessly manage trips for pilots and drivers with real-time location tracking 
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/e8b42d0c-8818-4f0a-b81b-c992b3a15b90" alt="Screenshot 1" width="400"/>
-  <img src="https://github.com/user-attachments/assets/de52417b-5ee0-460b-ac12-c77216d1d840" alt="Screenshot 2" width="400"/>
+  <img src="https://github.com/user-attachments/assets/e8b42d0c-8818-4f0a-b81b-c992b3a15b90" alt="Screenshot 1" width="200"/>
+  <img src="https://github.com/user-attachments/assets/de52417b-5ee0-460b-ac12-c77216d1d840" alt="Screenshot 2" width="200"/>
+  <img src="https://github.com/user-attachments/assets/f1544df0-334c-44b7-aed9-57af1b16c243" alt="Screenshot 3" width="200"/>
+  <img src="https://github.com/user-attachments/assets/66c624ae-fde6-447d-a903-56cc71ceec54" alt="Screenshot 4" width="200"/>
 </p>
 
 ## 🎥 Demo Video (Compass Movement)

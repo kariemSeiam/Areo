@@ -2,7 +2,6 @@ package com.pigo.areo
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -47,6 +46,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 123
+        private const val RETRY_DELAY_MS = 10000L // 10 seconds
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -58,15 +58,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private var cameraUpdateJob: Job? = null
+    private var permissionRetryJob: Job? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true && permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true && permissions[Manifest.permission.WAKE_LOCK] == true) {
+        val allPermissionsGranted = permissions.all { it.value }
+        if (allPermissionsGranted) {
             checkBatteryOptimization()
         } else {
-            Log.e("PermissionError", "Location or wake lock permissions denied.")
-            // Handle permission denial (e.g., show a message to the user)
+            Log.e("PermissionError", "Required permissions denied.")
+            startPermissionRetryCoroutine()
         }
     }
 
@@ -92,78 +94,104 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.tripDetailsFragment, R.id.createTripFragment, R.id.currentTripFragment
+                R.id.tripDetailsFragment,
+                R.id.createTripFragment,
+                R.id.currentTripFragment
             )
         )
         binding.bottomNavigation.setupWithNavController(navController)
     }
 
     private fun requestLocationPermissions() {
-        val permissionsToRequest = mutableListOf(
+        val locationPermissions = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
-        )
-
-        // Request background location permission on Android 10 (API level 29) and higher
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            Manifest.permission.WAKE_LOCK
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                plus(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
         }
 
-        if (permissionsToRequest.all {
-                ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-            }) {
-            // All permissions already granted
-            checkBatteryOptimization()
+        val permissionsToRequest = locationPermissions.filter {
+            ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissionsToRequest)
         } else {
-            // Request permissions
-            requestPermissionLauncher.launch(
-                permissionsToRequest.toTypedArray()
-            )
+            checkBatteryOptimization()
         }
     }
+
+    private fun startPermissionRetryCoroutine() {
+        permissionRetryJob = lifecycleScope.launch {
+            while (isActive) {
+                if (arePermissionsGranted()) {
+                    permissionRetryJob?.cancel()
+                    checkBatteryOptimization()
+                    return@launch
+                }
+                Log.d("PermissionRetry", "Retrying permission request...")
+                delay(RETRY_DELAY_MS)
+                requestLocationPermissions()
+            }
+        }
+    }
+
+    private fun arePermissionsGranted(): Boolean {
+        val requiredPermissions = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.WAKE_LOCK
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                plus(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        }
+        return requiredPermissions.all {
+            ActivityCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     private fun checkBatteryOptimization() {
-        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
             requestDisableBatteryOptimization()
         } else {
-            // Battery optimization is disabled, now check for GPS
             checkGpsAndStartService()
         }
     }
 
-    private fun checkGpsAndStartService() {
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            // GPS is enabled, start location service
-            startLocationService()
-        } else {
-            // GPS is not enabled, prompt user to enable it
-            openLocationSettings()
-        }
-    }
-
-
-    private fun startLocationService() {
-
-        // Start location updates after starting the service
-        fetchLastKnownLocation()
-        startPeriodicCameraUpdate()
-    }
-
     @SuppressLint("BatteryLife")
     private fun requestDisableBatteryOptimization() {
-        val intent = Intent().apply {
-            action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:$packageName")
         }
         startActivity(intent)
     }
 
+    private fun checkGpsAndStartService() {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            startLocationService()
+        } else {
+            openLocationSettings()
+        }
+    }
+
+    private fun startLocationService() {
+        fetchLastKnownLocation()
+        startPeriodicCameraUpdate()
+    }
+
     private fun fetchLastKnownLocation() {
         if (ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_COARSE_LOCATION
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             return
@@ -179,10 +207,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
                     updateLocationOnMap(location)
-                    sharedViewModel.addTripLocation(
-                        LatLng(location.latitude, location.longitude)
-                    )
-
+                    sharedViewModel.addTripLocation(LatLng(location.latitude, location.longitude))
                 }
             }
         }, null)
@@ -195,13 +220,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-
     private fun startPeriodicCameraUpdate() {
         cameraUpdateJob = lifecycleScope.launch {
             while (isActive) {
-                val userRole = sharedViewModel.userRole.value
                 sharedViewModel.updateCameraPosition()
-                delay(if (userRole == SharedViewModel.UserRole.DRIVER) 1500 else 5000)
+                delay(if (sharedViewModel.userRole.value == SharedViewModel.UserRole.DRIVER) 1500 else 5000)
             }
         }
     }
@@ -215,32 +238,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             sharedViewModel.updateCurrentMarkerAndAddMarkers(gMap)
             Log.d("LocationUpdate", "Updated current marker and added markers")
         }
-
     }
 
     private fun animateCameraToLocation(latLng: LatLng) {
-        val cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
-        gMap.animateCamera(cameraUpdate)
+        gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16f))
         Log.d("LocationUpdate", "Animated camera to new location: $latLng")
     }
 
-
     override fun onMapReady(googleMap: GoogleMap) {
-        sharedViewModel.setGoogleMap(googleMap)
         gMap = googleMap
-        val uiSettings = gMap.uiSettings
-
-        uiSettings.isCompassEnabled = false
-        uiSettings.isMyLocationButtonEnabled = false
-        uiSettings.isMapToolbarEnabled = false
-        uiSettings.isIndoorLevelPickerEnabled = false
+        val uiSettings = gMap.uiSettings.apply {
+            isCompassEnabled = false
+            isMyLocationButtonEnabled = false
+            isMapToolbarEnabled = false
+            isIndoorLevelPickerEnabled = false
+        }
 
         changeMapStyle()
+        sharedViewModel.setGoogleMap(gMap)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        cameraUpdateJob?.cancel() // Cancel coroutine job when activity is destroyed
+        cameraUpdateJob?.cancel()
+        permissionRetryJob?.cancel()
     }
 
     private fun changeMapStyle() {
@@ -248,13 +269,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         gMap.setMapStyle(style)
     }
 
-
     private fun openLocationSettings() {
-        val intent = Intent().apply {
-            component = ComponentName(
-                "com.android.settings", "com.android.settings.Settings\$LocationSettingsActivity"
-            )
-        }
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
         startActivity(intent)
     }
 }

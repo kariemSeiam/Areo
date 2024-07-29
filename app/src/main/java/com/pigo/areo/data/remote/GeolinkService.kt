@@ -1,9 +1,8 @@
-package com.pigo.areo.geolink
+package com.pigo.areo.data.remote
 
-import com.pigo.areo.geolink.models.DirectionResponse
-import com.pigo.areo.geolink.models.ReverseGeocodeResponse
-import com.pigo.areo.geolink.models.TextSearchResponse
-import org.intellij.lang.annotations.Language
+import com.pigo.areo.data.model.DirectionResponse
+import com.pigo.areo.data.model.ReverseGeocodeResponse
+import com.pigo.areo.data.model.TextSearchResponse
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Query

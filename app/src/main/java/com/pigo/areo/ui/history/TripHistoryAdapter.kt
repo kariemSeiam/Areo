@@ -14,8 +14,8 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import com.pigo.areo.R
-import com.pigo.areo.ui.current_trip.CustomLatLng
-import com.pigo.areo.ui.current_trip.Trip
+import com.pigo.areo.data.model.CustomLatLng
+import com.pigo.areo.data.model.Trip
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

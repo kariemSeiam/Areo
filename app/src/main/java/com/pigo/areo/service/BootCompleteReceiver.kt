@@ -1,4 +1,4 @@
-package com.pigo.areo
+package com.pigo.areo.service
 
 import android.content.BroadcastReceiver
 import android.content.Context
